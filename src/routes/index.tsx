@@ -4,6 +4,9 @@ import { toast } from "sonner";
 import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
+import { useAuth } from "@/lib/auth";
+
+const OMNI_ALLOWED_EMAIL = "wiktor@kidtok.co";
 
 export const Route = createFileRoute("/")({
   head: () => ({
