@@ -16,7 +16,8 @@ import { GoogleAuth } from "google-auth-library";
 import { buildVertexUrl, getThinkingPayload } from "../legacy/vertexRouting.js";
 import type { GeneratedImage, ImageGen, TextLlm, TextLlmRequest } from "./interfaces.js";
 
-const BACKOFF_SCHEDULE_MS = [1000, 3000, 7000];
+const BACKOFF_SCHEDULE_MS = [1500, 4000, 10000];
+const IMAGE_BACKOFF_SCHEDULE_MS = [5000, 12000, 25000, 40000, 60000];
 
 const ANALYSIS_SAFETY_SETTINGS = [
   { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
@@ -182,7 +183,8 @@ export class VertexGeminiImageGen implements ImageGen {
       safetySettings: DEFAULT_SAFETY_SETTINGS,
     };
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const maxAttempts = 6;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const token = await this.authClient.accessToken();
       let status: number;
       let json: unknown;
@@ -190,16 +192,20 @@ export class VertexGeminiImageGen implements ImageGen {
       try {
         ({ status, json, text } = await postJson(endpoint, token, body, 120_000));
       } catch (err) {
-        if (attempt < 2) {
-          await sleep(BACKOFF_SCHEDULE_MS[attempt] ?? 3000);
+        if (attempt < maxAttempts - 1) {
+          const sleepMs = IMAGE_BACKOFF_SCHEDULE_MS[attempt] ?? 30000;
+          console.warn(`[VertexGeminiImageGen] attempt ${attempt} failed with error (${err instanceof Error ? err.message : err}); sleeping ${sleepMs}ms before retry...`);
+          await sleep(sleepMs);
           continue;
         }
         throw err instanceof Error ? err : new Error(String(err));
       }
 
       if (status === 429 || status >= 500) {
-        if (attempt < 2) {
-          await sleep(BACKOFF_SCHEDULE_MS[attempt] ?? 3000);
+        if (attempt < maxAttempts - 1) {
+          const sleepMs = IMAGE_BACKOFF_SCHEDULE_MS[attempt] ?? 30000;
+          console.warn(`[VertexGeminiImageGen] attempt ${attempt} failed with HTTP ${status} (${status === 429 ? "Rate Limit" : "Server Error"}); sleeping ${sleepMs}ms before retry...`);
+          await sleep(sleepMs);
           continue;
         }
         throw new Error(`GEMINI_IMAGE_HTTP_${status}: ${text.substring(0, 200)}`);

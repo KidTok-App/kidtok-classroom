@@ -130,7 +130,7 @@ Set `ORCHESTRATOR_ENGINE=rest` to switch to the **fallback** path (same architec
 
 ### Hosted Live Environment
 
-* **Live Cloud Run API Endpoint**: `https://kidtok-classroom-agent-zlar3vdo5a-ew.a.run.app`
+* **Live Cloud Run API Endpoint**: `https://kidtok-classroom-agent-298496420007.europe-west1.run.app`
 * **Live Assets Bucket (GCS)**: `gs://kidtok-classroom-assets-f6622a7c` (Objects served publicly via standard HTTPS URLs)
 * **Active LLM Brain**: `gemini-2.5-flash` via Vertex AI (configured dynamically)
 * **Active Image Maker**: `gemini-2.5-flash-image` via Vertex AI (configured dynamically)
@@ -141,7 +141,7 @@ Set `ORCHESTRATOR_ENGINE=rest` to switch to the **fallback** path (same architec
 You can verify the live service's operational status and Firestore backend connection by fetching the list of successfully generated classroom episodes:
 
 ```bash
-curl -X GET "https://kidtok-classroom-agent-zlar3vdo5a-ew.a.run.app/episodes"
+curl -X GET "https://kidtok-classroom-agent-298496420007.europe-west1.run.app/episodes"
 ```
 
 Expected response format (showing the list of active episodes and metadata stored in Firestore Native):
