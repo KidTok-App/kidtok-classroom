@@ -147,7 +147,18 @@ export function AppHeader() {
 
           <div className="flex flex-col items-center gap-4 py-4 w-full">
             {/* Google GSI Standard Button container */}
-            <div id="google-signin-btn-dialog" className="min-h-[44px] flex items-center justify-center" />
+            {googleClientId ? (
+              <div id="google-signin-btn-dialog" className="min-h-[44px] flex items-center justify-center" />
+            ) : (
+              <div className="p-3.5 border-2 border-dashed border-amber-500/30 bg-amber-500/10 rounded-2xl text-center max-w-[280px]">
+                <p className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">
+                  ⚠️ Live Google Login is waiting for a Client ID!
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-normal font-medium">
+                  To activate real Google Sign-In, please set the <strong>VITE_GOOGLE_CLIENT_ID</strong> environment variable in your Lovable Project Settings or local <code>.env</code> file.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 w-full max-w-[280px] py-1">
               <div className="h-[1px] bg-border/60 flex-1" />
