@@ -14,7 +14,6 @@ KidTok Classroom turns a parent's request like *"why do volcanoes erupt"* into a
 |---|---|
 | `/` (root) | React + Vite frontend (built with Lovable). Polls the agent service via `src/lib/agentApi.ts`. |
 | `agent-service/` | The multi-agent backend (Node 22 + TypeScript, strict). This is where everything below lives. |
-| `agent-service/legacy-reference/` | Battle-tested modules from the original KidTok product kept for reference. Their logic was **ported** into `agent-service/src/legacy/` (see `legacy-reference/PORTING.md`); files that referenced non-Google vendors were stripped to compliance stubs after porting (originals in git history). |
 
 ## Quickstart
 
@@ -205,4 +204,4 @@ kidtok-agent-service@1.0.0
 - Firestore must exist in Native mode; the `episodes` collection needs a single-field index on `createdAt` (descending) — auto-created by default settings.
 - `gemini-3-flash` and `gemini-2.5-flash-image` must be enabled for the project; model ids are env-overridable (`GEMINI_TEXT_MODEL`, `GEMINI_IMAGE_MODEL`).
 - Phoenix: any reachable instance works (`PHOENIX_HOST` + `PHOENIX_API_KEY`); traces land in project `kidtok-classroom`.
-- Frontend: set `VITE_AGENT_API_URL` to the deployed service URL. CORS is open by design (demo).
+- Frontend: set `AGENT_API_URL` to the deployed service URL. CORS is open by design (demo).
