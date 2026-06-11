@@ -1,20 +1,5 @@
-/**
- * Google ADK (Agent Development Kit for TypeScript, @google/adk) engine —
- * the PRIMARY orchestration backbone (set ORCHESTRATOR_ENGINE=rest for the
- * documented plain-REST fallback).
- *
- * Each LLM-backed pipeline role is a named ADK `LlmAgent` definition
- * (script_agent, scene_planner_agent, safety_check_agent,
- * prompt_sanitizer_agent, review_alignment_agent,
- * review_prompt_improvement_agent), executed through the ADK `InMemoryRunner`
- * with Gemini served by Vertex AI (GOOGLE_GENAI_USE_VERTEXAI=true — see
- * config.ts which pins the process env for the underlying Google GenAI SDK).
- *
- * The ClassroomOrchestrator stays the single coordinator: agents never call
- * each other; ADK executes one agent per invocation with a structured-output
- * schema, and the orchestrator moves data between them.
- */
-
+import { trace } from "@opentelemetry/api";
+import { withSpan, SPAN_KIND_ATTR, SPAN_KINDS } from "../tracing.js";
 import { LlmAgent, InMemoryRunner } from "@google/adk";
 import type { TextLlm, TextLlmRequest } from "./interfaces.js";
 
@@ -77,38 +62,51 @@ export class AdkTextLlm implements TextLlm {
   }
 
   async generateJson<T>(req: TextLlmRequest): Promise<T> {
-    const runner = this.runnerFor(req);
-    const session = await runner.sessionService.createSession({
-      appName: APP_NAME,
-      userId: USER_ID,
-      state: { [SYSTEM_STATE_KEY]: req.system },
-    });
-
-    let lastErr: Error | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        let text = "";
-        for await (const event of runner.runAsync({
+    const tracer = trace.getTracer("kidtok-classroom");
+    return withSpan(
+      tracer,
+      `AdkTextLlm.${req.spanName}`,
+      {
+        [SPAN_KIND_ATTR]: SPAN_KINDS.LLM,
+        "llm.model_name": this.model,
+        "input.value": `System:\n${req.system}\n\nUser:\n${req.user}`,
+      },
+      async (span) => {
+        const runner = this.runnerFor(req);
+        const session = await runner.sessionService.createSession({
+          appName: APP_NAME,
           userId: USER_ID,
-          sessionId: session.id,
-          newMessage: { role: "user", parts: [{ text: req.user }] },
-        })) {
-          const parts = event.content?.parts ?? [];
-          const chunk = parts
-            .map((p) => (typeof p.text === "string" ? p.text : ""))
-            .join("");
-          // Keep the final complete model turn (non-streaming: one event).
-          if (event.author && event.author !== "user" && chunk.trim()) {
-            text = event.partial ? text + chunk : chunk;
+          state: { [SYSTEM_STATE_KEY]: req.system },
+        });
+
+        let lastErr: Error | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            let text = "";
+            for await (const event of runner.runAsync({
+              userId: USER_ID,
+              sessionId: session.id,
+              newMessage: { role: "user", parts: [{ text: req.user }] },
+            })) {
+              const parts = event.content?.parts ?? [];
+              const chunk = parts
+                .map((p) => (typeof p.text === "string" ? p.text : ""))
+                .join("");
+              // Keep the final complete model turn (non-streaming: one event).
+              if (event.author && event.author !== "user" && chunk.trim()) {
+                text = event.partial ? text + chunk : chunk;
+              }
+            }
+            if (!text.trim()) throw new Error(`ADK_EMPTY_RESPONSE agent=${req.spanName}`);
+            span.setAttribute("output.value", text);
+            return parseJsonLoose<T>(text);
+          } catch (err) {
+            lastErr = err instanceof Error ? err : new Error(String(err));
+            await new Promise((r) => setTimeout(r, 1500));
           }
         }
-        if (!text.trim()) throw new Error(`ADK_EMPTY_RESPONSE agent=${req.spanName}`);
-        return parseJsonLoose<T>(text);
-      } catch (err) {
-        lastErr = err instanceof Error ? err : new Error(String(err));
-        await new Promise((r) => setTimeout(r, 1500));
+        throw lastErr ?? new Error(`ADK_GENERATION_FAILED agent=${req.spanName}`);
       }
-    }
-    throw lastErr ?? new Error(`ADK_GENERATION_FAILED agent=${req.spanName}`);
+    );
   }
 }

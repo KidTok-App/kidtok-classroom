@@ -79,6 +79,7 @@ export class QualityReviewerAgent {
     templateUsed: string;
     templateFellBack: boolean;
     safetyVerdict: string;
+    userSteerage?: string;
   }): Promise<EpisodeReview> {
     // --- 1. Pull THIS episode's spans back out of Phoenix via MCP ---------
     await this.forceFlushTracing().catch(() => {});
@@ -168,15 +169,22 @@ export class QualityReviewerAgent {
 
     // --- 4. Publish an improved scene prompt when weakness was found ------
     const weaknessFound =
-      degradedScenes > 0 || input.imageRetries > 0 || alignmentScore < 8 || input.templateFellBack;
+      degradedScenes > 0 || input.imageRetries > 0 || alignmentScore < 8 || input.templateFellBack || !!input.userSteerage;
     let promptImproved = false;
     if (weaknessFound) {
-      promptImproved = await this.improveScenePrompt(input, {
-        degradedScenes,
-        imageRetries: input.imageRetries,
-        alignmentScore,
-        notes,
-      });
+      promptImproved = await this.improveScenePrompt(
+        {
+          episodeId: input.episodeId,
+          templateUsed: input.templateUsed,
+          userSteerage: input.userSteerage,
+        },
+        {
+          degradedScenes,
+          imageRetries: input.imageRetries,
+          alignmentScore,
+          notes,
+        }
+      );
       if (promptImproved) {
         notes.push(
           `Prompt mgmt: published an improved "${this.scenePromptName}" version for the next episode (was version=${input.promptVersionUsed ?? "seed"}).`,
@@ -217,24 +225,38 @@ export class QualityReviewerAgent {
   }
 
   private async improveScenePrompt(
-    input: { episodeId: string; templateUsed: string },
+    input: { episodeId: string; templateUsed: string; userSteerage?: string },
     weakness: { degradedScenes: number; imageRetries: number; alignmentScore: number; notes: string[] },
   ): Promise<boolean> {
     let improvedTemplate: string | null = null;
     try {
+      const userPromptParts = [
+        "CURRENT TEMPLATE:",
+        input.templateUsed,
+        "",
+      ];
+      if (input.userSteerage) {
+        userPromptParts.push(
+          "USER DIRECTIVE / STEERAGE GUIDELINE:",
+          `"${input.userSteerage}"`,
+          "",
+          "INSTRUCTION FOR USER DIRECTIVE:",
+          "Integrate the user's specific request or steerage guideline dynamically and beautifully into the scene-prompt template so that downstream cartoon image generation is guided by it.",
+          ""
+        );
+      }
+      userPromptParts.push(
+        "OBSERVED WEAKNESSES THIS EPISODE:",
+        `- degraded scenes (placeholder used): ${weakness.degradedScenes}`,
+        `- scenes that needed a sanitize-retry: ${weakness.imageRetries}`,
+        `- caption/narration alignment: ${weakness.alignmentScore}/10`,
+        ...weakness.notes.map((n) => `- ${n}`)
+      );
+
       const res = await this.llm.generateJson<{ improvedTemplate: string; changeSummary: string }>({
         spanName: "review-prompt-improvement",
         system: IMPROVEMENT_SYSTEM_PROMPT,
-        user: [
-          "CURRENT TEMPLATE:",
-          input.templateUsed,
-          "",
-          "OBSERVED WEAKNESSES THIS EPISODE:",
-          `- degraded scenes (placeholder used): ${weakness.degradedScenes}`,
-          `- scenes that needed a sanitize-retry: ${weakness.imageRetries}`,
-          `- caption/narration alignment: ${weakness.alignmentScore}/10`,
-          ...weakness.notes.map((n) => `- ${n}`),
-        ].join("\n"),
+        user: userPromptParts.join("\n"),
         schema: IMPROVEMENT_SCHEMA,
         temperature: 0.4,
         maxOutputTokens: 2048,

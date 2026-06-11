@@ -40,6 +40,14 @@ export interface Episode {
   videoUrl?: string;
   scenes?: Scene[];
   error?: string;
+  userSteerage?: string;
+  review?: {
+    score: number;
+    notes: string;
+    promptImproved: boolean;
+    promptVersionUsed: string | null;
+    spanCount: number;
+  };
 }
 
 export function getAuthHeaders(): Record<string, string> {
@@ -69,6 +77,7 @@ export async function createEpisode(input: {
   topic: string;
   ageBand: number;
   generationMode?: "slides" | "video";
+  userSteerage?: string;
 }): Promise<{ id: string }> {
   const res = await fetch(`${BASE}/episodes`, {
     method: "POST",

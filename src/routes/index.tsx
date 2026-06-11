@@ -43,9 +43,14 @@ function HomePage() {
   const [topic, setTopic] = useState("");
   const [ageBand, setAgeBand] = useState<number>(6);
   const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
+  const [userSteerage, setUserSteerage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
-  const canUseOmni = user?.email === OMNI_ALLOWED_EMAIL;
+  
+  const isLocal = typeof window !== "undefined" && 
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const isMockUser = user?.email?.endsWith("@kidtokai.com") || user?.email?.endsWith("@kidtok.co");
+  const canUseOmni = user?.email === OMNI_ALLOWED_EMAIL || isLocal || isMockUser;
 
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
@@ -60,7 +65,12 @@ function HomePage() {
     const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
     try {
-      const { id } = await createEpisode({ topic: t, ageBand, generationMode: effectiveMode });
+      const { id } = await createEpisode({ 
+        topic: t, 
+        ageBand, 
+        generationMode: effectiveMode,
+        userSteerage: canUseOmni ? userSteerage : undefined
+      });
       navigate({ to: "/episode/$id", params: { id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't start your cartoon.");
@@ -169,6 +179,37 @@ function HomePage() {
             </div>
           </div>
 
+          {/* Premium MCP Steering Panel */}
+          {canUseOmni && (
+            <div className="border border-accent/25 bg-accent/5 rounded-3xl p-5 text-left max-w-xl mx-auto space-y-3 shadow-medium">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/20 text-accent">
+                  <Sparkles className="h-4 w-4 animate-pulse" />
+                </div>
+                <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-accent">
+                  🔥 Active Prompt-Steering Panel (Dev Mode)
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                This premium pipeline uses our <strong>Arize Phoenix & OpenTelemetry Closed-Loop Engine</strong>. 
+                Type custom directives below to steer how our multi-agent team adjusts prompt parameters and drawing aesthetics!
+              </p>
+              <textarea
+                value={userSteerage}
+                onChange={(e) => setUserSteerage(e.target.value)}
+                placeholder="e.g., Make the visual drawings feel futuristic and cosmic, or make the narrator speak with high energetic enthusiasm..."
+                rows={3}
+                className="w-full text-sm p-3.5 rounded-2xl bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/15 transition placeholder:text-muted-foreground/40 text-foreground"
+                disabled={submitting}
+              />
+              <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold">
+                <span>Targeting: Gemini Omni + Phoenix MCP Co-Processor</span>
+                <span className="text-accent bg-accent/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  Loop Ready
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">

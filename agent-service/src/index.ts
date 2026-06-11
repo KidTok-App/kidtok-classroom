@@ -5,10 +5,11 @@
  * KIDTOK_FAKE_PROVIDERS=1) → ClassroomOrchestrator → Express API.
  */
 
+import "./instrumentation.js";
+import { tracingHandle } from "./instrumentation.js";
 import path from "node:path";
 import { GoogleAuth } from "google-auth-library";
 import { loadConfig } from "./config.js";
-import { initTracing } from "./tracing.js";
 import { createServer } from "./server.js";
 import { ClassroomOrchestrator } from "./orchestrator/ClassroomOrchestrator.js";
 import type { Providers, TextLlm } from "./clients/interfaces.js";
@@ -39,7 +40,7 @@ export interface BootResult {
 
 export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootResult> {
   const cfg = loadConfig(env);
-  const tracing = initTracing(cfg);
+  const tracing = tracingHandle;
 
   let providers: Providers;
   let localAssetsDir: string | undefined;

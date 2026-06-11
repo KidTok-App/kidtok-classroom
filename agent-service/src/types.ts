@@ -81,6 +81,7 @@ export interface EpisodeDoc {
   scenes?: SceneAsset[];
   review?: EpisodeReview;
   error?: string;
+  userSteerage?: string;
   metrics?: EpisodeMetrics;
 }
 
@@ -99,6 +100,7 @@ export function toPublicEpisode(doc: EpisodeDoc): Record<string, unknown> {
     ...(doc.scenes ? { scenes: doc.scenes } : {}),
     ...(doc.review ? { review: doc.review } : {}),
     ...(doc.error ? { error: doc.error } : {}),
+    ...(doc.userSteerage ? { userSteerage: doc.userSteerage } : {}),
   };
 }
 

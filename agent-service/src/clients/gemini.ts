@@ -12,6 +12,8 @@
  * (`*aiplatform.googleapis.com`) — Gemini via the Vertex publisher endpoint.
  */
 
+import { trace } from "@opentelemetry/api";
+import { withSpan, SPAN_KIND_ATTR, SPAN_KINDS } from "../tracing.js";
 import { GoogleAuth } from "google-auth-library";
 import { buildVertexUrl, getThinkingPayload } from "../legacy/vertexRouting.js";
 import type { GeneratedImage, ImageGen, TextLlm, TextLlmRequest } from "./interfaces.js";
@@ -114,43 +116,57 @@ export class VertexRestTextLlm implements TextLlm {
   ) {}
 
   async generateJson<T>(req: TextLlmRequest): Promise<T> {
-    const endpoint = buildVertexUrl(this.model, this.projectId, this.region, true, ":generateContent");
-    const thinkingCfg = getThinkingPayload(this.model);
-    const body = {
-      contents: [{ role: "user", parts: [{ text: req.user }] }],
-      systemInstruction: { parts: [{ text: req.system }] },
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: req.schema,
-        temperature: req.temperature ?? 0.4,
-        maxOutputTokens: req.maxOutputTokens ?? 4096,
-        ...(thinkingCfg ? { thinkingConfig: thinkingCfg } : {}),
+    const tracer = trace.getTracer("kidtok-classroom");
+    return withSpan(
+      tracer,
+      `VertexRestTextLlm.${req.spanName}`,
+      {
+        [SPAN_KIND_ATTR]: SPAN_KINDS.LLM,
+        "llm.model_name": this.model,
+        "input.value": `System:\n${req.system}\n\nUser:\n${req.user}`,
       },
-      safetySettings:
-        req.safetyMode === "analysis" ? ANALYSIS_SAFETY_SETTINGS : DEFAULT_SAFETY_SETTINGS,
-    };
+      async (span) => {
+        const endpoint = buildVertexUrl(this.model, this.projectId, this.region, true, ":generateContent");
+        const thinkingCfg = getThinkingPayload(this.model);
+        const body = {
+          contents: [{ role: "user", parts: [{ text: req.user }] }],
+          systemInstruction: { parts: [{ text: req.system }] },
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: req.schema,
+            temperature: req.temperature ?? 0.4,
+            maxOutputTokens: req.maxOutputTokens ?? 4096,
+            ...(thinkingCfg ? { thinkingConfig: thinkingCfg } : {}),
+          },
+          safetySettings:
+            req.safetyMode === "analysis" ? ANALYSIS_SAFETY_SETTINGS : DEFAULT_SAFETY_SETTINGS,
+        };
 
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const token = await this.authClient.accessToken();
-        const { status, json, text } = await postJson(endpoint, token, body, 90_000);
-        if (status === 429 || status >= 500) {
-          lastError = new Error(`GEMINI_TEXT_HTTP_${status}: ${text.substring(0, 200)}`);
-          await sleep(BACKOFF_SCHEDULE_MS[Math.min(attempt, BACKOFF_SCHEDULE_MS.length - 1)] ?? 3000);
-          continue;
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const token = await this.authClient.accessToken();
+            const { status, json, text } = await postJson(endpoint, token, body, 90_000);
+            if (status === 429 || status >= 500) {
+              lastError = new Error(`GEMINI_TEXT_HTTP_${status}: ${text.substring(0, 200)}`);
+              await sleep(BACKOFF_SCHEDULE_MS[Math.min(attempt, BACKOFF_SCHEDULE_MS.length - 1)] ?? 3000);
+              continue;
+            }
+            if (status !== 200) {
+              throw new Error(`GEMINI_TEXT_HTTP_${status}: ${text.substring(0, 300)}`);
+            }
+            const responseText = extractTextPart(json);
+            span.setAttribute("output.value", responseText);
+            return parseJsonLoose<T>(responseText);
+          } catch (err) {
+            if (err instanceof Error && /HTTP_4\d\d|PROMPT_BLOCKED/.test(err.message)) throw err;
+            lastError = err instanceof Error ? err : new Error(String(err));
+            await sleep(BACKOFF_SCHEDULE_MS[Math.min(attempt, BACKOFF_SCHEDULE_MS.length - 1)] ?? 3000);
+          }
         }
-        if (status !== 200) {
-          throw new Error(`GEMINI_TEXT_HTTP_${status}: ${text.substring(0, 300)}`);
-        }
-        return parseJsonLoose<T>(extractTextPart(json));
-      } catch (err) {
-        if (err instanceof Error && /HTTP_4\d\d|PROMPT_BLOCKED/.test(err.message)) throw err;
-        lastError = err instanceof Error ? err : new Error(String(err));
-        await sleep(BACKOFF_SCHEDULE_MS[Math.min(attempt, BACKOFF_SCHEDULE_MS.length - 1)] ?? 3000);
+        throw lastError ?? new Error("GEMINI_TEXT_FAILED");
       }
-    }
-    throw lastError ?? new Error("GEMINI_TEXT_FAILED");
+    );
   }
 }
 
@@ -170,61 +186,74 @@ export class VertexGeminiImageGen implements ImageGen {
    * soft failure and runs the sanitize-retry path).
    */
   async generatePng(prompt: string): Promise<GeneratedImage | null> {
-    const endpoint = buildVertexUrl(this.model, this.projectId, this.region, true, ":generateContent");
-    const thinkingCfg = getThinkingPayload(this.model);
-    const body = {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"],
-        temperature: 1.0,
-        ...(thinkingCfg ? { thinkingConfig: thinkingCfg } : {}),
-        imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
+    const tracer = trace.getTracer("kidtok-classroom");
+    return withSpan(
+      tracer,
+      "VertexGeminiImageGen.generatePng",
+      {
+        [SPAN_KIND_ATTR]: SPAN_KINDS.TOOL,
+        "tool.name": "gemini_image_generator",
+        "input.value": prompt,
       },
-      safetySettings: DEFAULT_SAFETY_SETTINGS,
-    };
+      async (span) => {
+        const endpoint = buildVertexUrl(this.model, this.projectId, this.region, true, ":generateContent");
+        const thinkingCfg = getThinkingPayload(this.model);
+        const body = {
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseModalalities: ["IMAGE", "TEXT"],
+            temperature: 1.0,
+            ...(thinkingCfg ? { thinkingConfig: thinkingCfg } : {}),
+            imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
+          },
+          safetySettings: DEFAULT_SAFETY_SETTINGS,
+        };
 
-    const maxAttempts = 6;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const token = await this.authClient.accessToken();
-      let status: number;
-      let json: unknown;
-      let text: string;
-      try {
-        ({ status, json, text } = await postJson(endpoint, token, body, 120_000));
-      } catch (err) {
-        if (attempt < maxAttempts - 1) {
-          const sleepMs = IMAGE_BACKOFF_SCHEDULE_MS[attempt] ?? 30000;
-          console.warn(`[VertexGeminiImageGen] attempt ${attempt} failed with error (${err instanceof Error ? err.message : err}); sleeping ${sleepMs}ms before retry...`);
-          await sleep(sleepMs);
-          continue;
+        const maxAttempts = 6;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const token = await this.authClient.accessToken();
+          let status: number;
+          let json: unknown;
+          let text: string;
+          try {
+            ({ status, json, text } = await postJson(endpoint, token, body, 120_000));
+          } catch (err) {
+            if (attempt < maxAttempts - 1) {
+              const sleepMs = IMAGE_BACKOFF_SCHEDULE_MS[attempt] ?? 30000;
+              console.warn(`[VertexGeminiImageGen] attempt ${attempt} failed with error (${err instanceof Error ? err.message : err}); sleeping ${sleepMs}ms before retry...`);
+              await sleep(sleepMs);
+              continue;
+            }
+            throw err instanceof Error ? err : new Error(String(err));
+          }
+
+          if (status === 429 || status >= 500) {
+            if (attempt < maxAttempts - 1) {
+              const sleepMs = IMAGE_BACKOFF_SCHEDULE_MS[attempt] ?? 30000;
+              console.warn(`[VertexGeminiImageGen] attempt ${attempt} failed with HTTP ${status} (${status === 429 ? "Rate Limit" : "Server Error"}); sleeping ${sleepMs}ms before retry...`);
+              await sleep(sleepMs);
+              continue;
+            }
+            throw new Error(`GEMINI_IMAGE_HTTP_${status}: ${text.substring(0, 200)}`);
+          }
+          if (status !== 200) {
+            throw new Error(`GEMINI_IMAGE_HTTP_${status}: ${text.substring(0, 300)}`);
+          }
+
+          const data = json as GeminiCandidatesResponse;
+          const parts = data.candidates?.[0]?.content?.parts;
+          if (!parts || parts.length === 0) return null;
+          const imagePart = parts.find((p) => p.inlineData?.mimeType?.startsWith("image/"));
+          if (!imagePart?.inlineData?.data) return null;
+          span.setAttribute("output.value", `Image generated successfully: ${imagePart.inlineData.mimeType}`);
+          return {
+            data: Buffer.from(imagePart.inlineData.data, "base64"),
+            mimeType: imagePart.inlineData.mimeType || "image/png",
+          };
         }
-        throw err instanceof Error ? err : new Error(String(err));
+        return null;
       }
-
-      if (status === 429 || status >= 500) {
-        if (attempt < maxAttempts - 1) {
-          const sleepMs = IMAGE_BACKOFF_SCHEDULE_MS[attempt] ?? 30000;
-          console.warn(`[VertexGeminiImageGen] attempt ${attempt} failed with HTTP ${status} (${status === 429 ? "Rate Limit" : "Server Error"}); sleeping ${sleepMs}ms before retry...`);
-          await sleep(sleepMs);
-          continue;
-        }
-        throw new Error(`GEMINI_IMAGE_HTTP_${status}: ${text.substring(0, 200)}`);
-      }
-      if (status !== 200) {
-        throw new Error(`GEMINI_IMAGE_HTTP_${status}: ${text.substring(0, 300)}`);
-      }
-
-      const data = json as GeminiCandidatesResponse;
-      const parts = data.candidates?.[0]?.content?.parts;
-      if (!parts || parts.length === 0) return null;
-      const imagePart = parts.find((p) => p.inlineData?.mimeType?.startsWith("image/"));
-      if (!imagePart?.inlineData?.data) return null;
-      return {
-        data: Buffer.from(imagePart.inlineData.data, "base64"),
-        mimeType: imagePart.inlineData.mimeType || "image/png",
-      };
-    }
-    return null;
+    );
   }
 }
 

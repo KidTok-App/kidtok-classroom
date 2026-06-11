@@ -178,6 +178,7 @@ Ensure you explicitly describe:
                 templateUsed: planOut.templateUsed,
                 templateFellBack: planOut.templateFellBack,
                 safetyVerdict: scriptOut.safetyVerdict,
+                userSteerage: doc.userSteerage,
               }),
             );
 
@@ -252,6 +253,7 @@ Ensure you explicitly describe:
               templateUsed: planOut.templateUsed,
               templateFellBack: planOut.templateFellBack,
               safetyVerdict: scriptOut.safetyVerdict,
+              userSteerage: doc.userSteerage,
             }),
           );
 
