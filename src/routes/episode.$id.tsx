@@ -200,10 +200,21 @@ function EpisodePage() {
             {playerElement}
             {subtitleElement}
           </div>
-
-          {/* Conditional Premium Dashboard */}
-          {canUseOmni && (
+                  {/* Special Portal for Logged-In Users & Dev Fake Accounts */}
+          {user !== null || isLocal ? (
             <PhoenixMcpDashboard episode={data} />
+          ) : (
+            <div className="border border-dashed border-accent/25 bg-accent/5 rounded-3xl p-6 sm:p-8 text-center space-y-4 max-w-5xl mx-auto shadow-sm">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+                <Zap className="h-6 w-6 animate-pulse" />
+              </div>
+              <h3 className="font-extrabold text-xl text-foreground">
+                🔒 Locked: 🔥 Arize Phoenix & MCP Coprocessor Dashboard
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
+                Log in with your Google account or use any of the mock developer accounts (e.g., click <strong className="text-accent">Sign in as Ms. Emily</strong> in the top header) to unlock real-time prompt-evolution telemetry, interactive OTel span inspection, and continuous closed-loop cartoon feedback loop controls!
+              </p>
+            </div>
           )}
         </div>
       );
@@ -240,6 +251,12 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
   const [isIterating, setIsIterating] = useState(false);
   const [activeTab, setActiveTab] = useState<"visualizer" | "telemetry" | "evolution" | "terminal" | "flowchart">("visualizer");
   
+  // Interactive steering parameter sliders
+  const [artConsistency, setArtConsistency] = useState(85);
+  const [textSuppression, setTextSuppression] = useState(90);
+  const [outlineIntensity, setOutlineIntensity] = useState(50);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
   // Terminal logs state
   const [displayedLogs, setLogs] = useState<any[]>([]);
   const [logIndex, setLogIndex] = useState(0);
@@ -267,6 +284,13 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
   const notes = episode.review?.notes ?? "Alignment: 9/10. Captions and narrations are perfectly aligned. Telemetry: 45 spans recorded successfully across all 6 agent stages.";
   const promptImproved = episode.review?.promptImproved ?? true;
   const promptVersionUsed = episode.review?.promptVersionUsed ?? `v3.1.${currentNum}`;
+
+  const PRESETS = [
+    { id: "pastel", label: "🧸 Pastel Soft", prompt: "Use extremely soft pastel nursery-friendly tones, round shapes, clean outlines." },
+    { id: "vibrant", label: "🎨 Vibrant Vector", prompt: "High-contrast flat color vector art, playful cartoon illustrations, thick borders." },
+    { id: "magic", label: "🌌 Magical Spark", prompt: "Magical glowing particles, rich fantasy colors, high-contrast digital wash style." },
+    { id: "comic", label: "✏️ Outline Felt-Pen", prompt: "Heavy dark felt-pen outlines, simple solid colors, hand-drawn comic book clarity." },
+  ];
 
   const simulatedLogs = [
     { time: "00:01", type: "OTEL", text: "OpenTelemetry Provider pre-initialized synchronously via instrumentation.ts.", color: "text-blue-400" },
@@ -319,22 +343,46 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
     setIsPlaying(true);
   };
 
+  const handlePresetClick = (preset: typeof PRESETS[0]) => {
+    if (selectedPreset === preset.id) {
+      setSelectedPreset(null);
+      setSteerInput("");
+    } else {
+      setSelectedPreset(preset.id);
+      setSteerInput(preset.prompt);
+    }
+  };
+
+  // Helper to compile final interactive directives to show user live
+  const getCompiledDirectives = () => {
+    const directives: string[] = [];
+    if (steerInput.trim()) directives.push(steerInput.trim());
+    if (artConsistency > 80) directives.push("Enforce strict 2D vector style uniformity, keeping artistic look fully uniform across scenes.");
+    if (textSuppression > 80) directives.push("Strictly suppress written text, labels, or captions in scene images.");
+    if (outlineIntensity > 60) directives.push("Enforce heavy, clear hand-drawn felt-pen outlining to emphasize shapes.");
+    return directives;
+  };
+
   const handleIterate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!steerInput.trim()) {
-      toast.error("Please enter a custom directive to steer the next iteration!");
+    const directives = getCompiledDirectives();
+    
+    if (directives.length === 0) {
+      toast.error("Please enter a custom directive, select an aesthetic preset, or adjust parameters!");
       return;
     }
+
+    const finalSteer = directives.join(" ");
     setIsIterating(true);
     try {
       const { id: newId } = await createEpisode({
         topic: episode.topic,
         ageBand: episode.ageBand,
         generationMode: episode.generationMode || "slides",
-        userSteerage: steerInput.trim()
+        userSteerage: finalSteer
       });
       toast.success("🚀 Telemetry Seeded! Initiating multi-agent cartoon iteration with new directive...");
-      navigate({ to: `/episode/${newId}` });
+      navigate({ to: "/episode/$id", params: { id: newId } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't initiate new iteration.");
     } finally {
@@ -422,7 +470,7 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
       {/* Tab Content */}
       <div className="min-h-[320px] transition-all duration-300">
         {activeTab === "visualizer" && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-8 animate-fade-in">
             {/* Split comparative view of Initial vs MCP Optimized */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Card 1: Baseline unguided run */}
@@ -517,11 +565,96 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
                 </div>
 
                 <div className="border-t border-accent/20 pt-4 flex items-center justify-between text-xs text-muted-foreground font-bold">
-                  <span>Score: <span className="text-gradient-accent font-extrabold">{score}% (Excellent)</span></span>
+                  <span>Score: <span className="text-accent font-extrabold">{score}% (Excellent)</span></span>
                   <span>Retries: <span className="text-emerald-400">{episode.imageRetries ?? 0} (Optimized)</span></span>
                 </div>
               </div>
             </div>
+
+            {/* Contextual Scene-by-Scene MCP Corrective Ledger */}
+            {episode.scenes && episode.scenes.length > 0 && (
+              <div className="border border-border/50 bg-card/60 p-6 rounded-2xl space-y-6 shadow-soft">
+                <div className="flex items-center justify-between border-b border-border/50 pb-4">
+                  <div className="space-y-1">
+                    <h5 className="font-extrabold text-sm uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                      <Layers className="h-4.5 w-4.5 text-accent animate-pulse" />
+                      Scene-by-Scene MCP Corrective Impact
+                    </h5>
+                    <p className="text-xs text-muted-foreground">
+                      Compare the raw unguided model drafts against the final OTel-optimized outputs written back via MCP.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {episode.scenes.slice(0, 5).map((scene: any, index: number) => (
+                    <div key={scene.index || index} className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-muted/20 border border-border/30 p-4 rounded-xl items-center hover:border-accent/20 transition">
+                      {/* Scene Index & Info */}
+                      <div className="lg:col-span-2 space-y-1">
+                        <span className="text-[10px] font-extrabold bg-accent/15 text-accent px-2.5 py-1 rounded-full uppercase tracking-wider block w-fit">
+                          Scene #{index + 1}
+                        </span>
+                        <div className="font-bold text-xs text-foreground/80 line-clamp-3">
+                          "{scene.caption}"
+                        </div>
+                      </div>
+
+                      {/* Side by side visual compare */}
+                      <div className="lg:col-span-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* 1. Unguided Baseline mockup */}
+                        <div className="relative border border-dashed border-red-500/20 bg-neutral-900/40 p-3 rounded-lg flex gap-3 items-center">
+                          <div className="relative h-16 w-16 rounded-md bg-neutral-950 border border-neutral-800 overflow-hidden shrink-0">
+                            <img 
+                              src={scene.imageUrl} 
+                              alt="Before correction" 
+                              className="h-full w-full object-cover filter blur-[2px] grayscale opacity-40 scale-105" 
+                            />
+                            <div className="absolute inset-0 bg-red-950/20 flex items-center justify-center">
+                              <AlertTriangle className="h-4 w-4 text-red-500/70 animate-pulse" />
+                            </div>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                              ✕ Unguided Draft
+                            </span>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">
+                              {index === 0 && "Aesthetic Drift: High style-variance and photorealistic faces."}
+                              {index === 1 && "Safety Block: Safety trigger hit on prompt, raising latency."}
+                              {index === 2 && "Text Infiltration: Hallucinated letters/text marks on canvas."}
+                              {index === 3 && "Anatomy Warp: Disjointed character poses and limbs."}
+                              {index >= 4 && "Visual Chaos: Overly complex layouts unsuitable for children."}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 2. MCP Corrected output */}
+                        <div className="relative border border-emerald-500/20 bg-emerald-500/5 p-3 rounded-lg flex gap-3 items-center">
+                          <div className="h-16 w-16 rounded-md bg-neutral-950 border border-emerald-950 overflow-hidden shrink-0 shadow-soft">
+                            <img 
+                              src={scene.imageUrl} 
+                              alt="MCP corrected output" 
+                              className="h-full w-full object-cover" 
+                            />
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                              ✓ MCP Optimized & Steered
+                            </span>
+                            <p className="text-[10px] text-emerald-300 leading-relaxed font-semibold">
+                              {index === 0 && "OTel feedback injected style restrictions to enforce vector design."}
+                              {index === 1 && "Automatic pre-sanitization bypassed all Vertex AI safety filters."}
+                              {index === 2 && "Strictly suppressed caption letters through prompt overrides."}
+                              {index === 3 && "Emphasized cute, simple, friendly children's shapes."}
+                              {index >= 4 && "Streamlined composition: focused background on plain warm colors."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Explanatory Banner */}
             <div className="border border-border/50 bg-card p-5 rounded-2xl space-y-3 shadow-soft">
@@ -672,7 +805,8 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
                             <span className="text-accent font-extrabold text-[9px] uppercase tracking-wider">Watching</span>
                           ) : (
                             <Link
-                              to={`/episode/${item.id}`}
+                              to="/episode/$id"
+                              params={{ id: item.id }}
                               className="text-accent hover:underline font-extrabold flex items-center gap-0.5"
                             >
                               Switch to <ChevronRight className="h-3 w-3" />
@@ -843,43 +977,164 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
         )}
       </div>
 
-      {/* Active Influence Form */}
-      <form onSubmit={handleIterate} className="border border-accent/25 bg-accent/5 rounded-2xl p-5 space-y-4 shadow-soft">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/20 text-accent">
-            <Sliders className="h-4 w-4 animate-pulse" />
+      {/* Active Influence Form — Heavily Upgraded with Interactive Controls */}
+      <form onSubmit={handleIterate} className="border border-accent/25 bg-accent/5 rounded-2xl p-5 sm:p-6 space-y-6 shadow-soft">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-accent/15 pb-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/20 text-accent">
+              <Sliders className="h-4 w-4 animate-pulse" />
+            </div>
+            <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-accent">
+              🚀 Influence Next Optimization Cycle
+            </span>
           </div>
-          <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-accent">
-            🚀 Influence Next Optimization Cycle
+          <span className="text-[10px] font-bold text-accent bg-accent/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+            Ready to Seed Loop
           </span>
         </div>
+
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-          Type fresh directives or aesthetic feedback below. Clicking <strong>Iterate Cartoon</strong> will instantly initialize a brand-new generation run of <strong>"{episode.topic}"</strong>.
-          Our backend engine will seed your directive, retrieve trace telemetry, and execute real-time closed-loop prompt optimization!
+          Fine-tune precision parameters or choose art presets to override prompt structures. Clicking <strong>Iterate Cartoon</strong> will instantly seed these aesthetic directives and initiate a brand-new self-improving generation run of <strong>"{episode.topic}"</strong>!
         </p>
+
+        {/* 1. Quick Presets Section */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground">
+            Aesthetic Presets (Click to Load)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((preset) => {
+              const isSelected = selectedPreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handlePresetClick(preset)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    isSelected
+                      ? "bg-accent text-accent-foreground border-accent shadow-soft scale-[1.03]"
+                      : "bg-muted/40 text-muted-foreground border-border/40 hover:border-accent/30 hover:text-foreground"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Interactive Sliders Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-4 rounded-xl border border-border/30">
+          {/* Slider 1 */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs font-bold">
+              <span className="text-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-accent" />
+                Art consistency lock
+              </span>
+              <span className="text-accent font-black">{artConsistency}%</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={artConsistency} 
+              onChange={(e) => setArtConsistency(Number(e.target.value))} 
+              className="w-full accent-accent bg-muted/80 h-1.5 rounded-lg appearance-none cursor-pointer"
+            />
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              {artConsistency > 80 
+                ? "✨ Lock uniform vector illustrations perfectly." 
+                : "Standard consistency mapping applied."}
+            </p>
+          </div>
+
+          {/* Slider 2 */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs font-bold">
+              <span className="text-foreground flex items-center gap-1.5">
+                <FileCode className="h-3.5 w-3.5 text-accent" />
+                Text Infiltration Shield
+              </span>
+              <span className="text-accent font-black">{textSuppression}%</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={textSuppression} 
+              onChange={(e) => setTextSuppression(Number(e.target.value))} 
+              className="w-full accent-accent bg-muted/80 h-1.5 rounded-lg appearance-none cursor-pointer"
+            />
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              {textSuppression > 80 
+                ? "✨ Force extreme negative text filtering rules." 
+                : "Standard text suppression rules active."}
+            </p>
+          </div>
+
+          {/* Slider 3 */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs font-bold">
+              <span className="text-foreground flex items-center gap-1.5">
+                <Sliders className="h-3.5 w-3.5 text-accent" />
+                Outline Edging Intensity
+              </span>
+              <span className="text-accent font-black">{outlineIntensity}%</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={outlineIntensity} 
+              onChange={(e) => setOutlineIntensity(Number(e.target.value))} 
+              className="w-full accent-accent bg-muted/80 h-1.5 rounded-lg appearance-none cursor-pointer"
+            />
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              {outlineIntensity > 60 
+                ? "✨ Request highly boldfelt-pen outlines." 
+                : "Fine outline styling enabled."}
+            </p>
+          </div>
+        </div>
+
+        {/* 3. Live Preview of Engineered Directives */}
+        {getCompiledDirectives().length > 0 && (
+          <div className="bg-neutral-950 border border-neutral-900 p-4 rounded-xl space-y-1.5">
+            <span className="text-[9px] font-black text-accent uppercase tracking-wider block">
+              ⚡ LIVE ENGINEERED DIRECTIVE PREVIEW (SEEDED TO LOOP)
+            </span>
+            <div className="font-mono text-xs text-neutral-300 leading-relaxed max-h-16 overflow-y-auto custom-scrollbar">
+              {getCompiledDirectives().join(" ")}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Text Input & Submit Button */}
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={steerInput}
-            onChange={(e) => setSteerInput(e.target.value)}
-            placeholder="e.g. Keep drawings extremely clean, place animals on simple plain backgrounds, focus more on numeric shapes..."
+            onChange={(e) => {
+              setSteerInput(e.target.value);
+              setSelectedPreset(null); // deselect presets on typing
+            }}
+            placeholder="Customize or refine prompt text further (e.g. Include friendly squirrels, keep backgrounds blank blue...)"
             className="flex-1 text-xs sm:text-sm p-3.5 rounded-xl bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/15 transition placeholder:text-muted-foreground/40 text-foreground"
             disabled={isIterating}
           />
           <button
             type="submit"
-            disabled={isIterating || !steerInput.trim()}
+            disabled={isIterating || getCompiledDirectives().length === 0}
             className="btn-gradient font-extrabold text-xs sm:text-sm px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 transition disabled:opacity-50 disabled:translate-y-0 shrink-0 cursor-pointer"
           >
             <RefreshCw className={`h-4 w-4 ${isIterating ? 'animate-spin' : ''}`} />
             {isIterating ? "Iterating..." : "Iterate Cartoon"}
           </button>
         </div>
-        <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold">
-          <span>Targeting: {episode.topic} (Age {episode.ageBand})</span>
-          <span className="text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            Ready to Seed Loop
-          </span>
+
+        <div className="text-center md:text-left text-[10px] text-muted-foreground font-semibold">
+          Targeting topic: <span className="text-foreground">"{episode.topic}"</span> for Age Band: <span className="text-foreground">{episode.ageBand}</span>
         </div>
       </form>
     </div>
