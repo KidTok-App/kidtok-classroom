@@ -68,9 +68,10 @@ function HomePage() {
 
   return (
     <div className="relative">
-      {/* Hero */}
-      <section className="bloom-host relative mx-auto max-w-5xl px-4 pt-12 sm:pt-20 pb-12 text-center overflow-hidden">
+      {/* Hero — full-bleed bloom backdrop, centered content */}
+      <section className="bloom-host relative w-full overflow-hidden">
         <Decor />
+        <div className="relative mx-auto max-w-5xl px-4 pt-12 sm:pt-20 pb-12 text-center">
 
         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border shadow-soft text-xs font-bold uppercase tracking-wider text-muted-foreground mb-6">
           <Sparkles className="h-3.5 w-3.5 text-primary" /> Multi-agent learning studio
