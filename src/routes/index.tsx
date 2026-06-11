@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Zap, Shield, Heart, BookOpen } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
 
@@ -26,15 +26,23 @@ export const Route = createFileRoute("/")({
 
 const AGES = [5, 6, 7, 8] as const;
 
+const SAMPLE_TOPICS = [
+  { label: "Alphabet", emoji: "🅰️", prompt: "Learning the alphabet with fun examples" },
+  { label: "Counting", emoji: "🔢", prompt: "Counting from 1 to 20 with friendly animals" },
+  { label: "Colors", emoji: "🎨", prompt: "Discovering the rainbow and primary colors" },
+  { label: "Animals", emoji: "🐶", prompt: "Meet farm animals and the sounds they make" },
+  { label: "Shapes", emoji: "⭐", prompt: "Circles, squares, triangles and stars" },
+  { label: "Plants", emoji: "🌱", prompt: "How a tiny seed grows into a tall plant" },
+];
+
 function HomePage() {
   const navigate = useNavigate();
   const [topic, setTopic] = useState("");
   const [ageBand, setAgeBand] = useState<number>(6);
   const [submitting, setSubmitting] = useState(false);
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const t = topic.trim();
+  const submit = async (rawTopic: string) => {
+    const t = rawTopic.trim();
     if (!t) {
       toast.error("Tell us what to learn about first!");
       return;
@@ -53,27 +61,33 @@ function HomePage() {
     }
   };
 
-  return (
-    <div className="relative overflow-hidden">
-      {/* Decorative stars */}
-      <Decor />
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void submit(topic);
+  };
 
-      <section className="relative mx-auto max-w-3xl px-4 pt-12 sm:pt-20 pb-16 text-center">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent text-accent-foreground text-xs font-bold uppercase tracking-wider mb-6">
-          <Sparkles className="h-3.5 w-3.5" /> Multi-agent learning studio
+  return (
+    <div className="relative">
+      {/* Hero */}
+      <section className="bloom-host relative mx-auto max-w-5xl px-4 pt-12 sm:pt-20 pb-12 text-center overflow-hidden">
+        <Decor />
+
+        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border shadow-soft text-xs font-bold uppercase tracking-wider text-muted-foreground mb-6">
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> Multi-agent learning studio
         </span>
-        <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight mb-4">
-          What should we{" "}
-          <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-            learn today?
-          </span>
+
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.02] tracking-tight mb-5">
+          What should we
+          <br />
+          <span className="text-gradient-primary">learn today?</span>
         </h1>
-        <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-10">
-          Type any topic. Our AI agents will write, draw, and narrate an animated cartoon for your
+
+        <p className="text-base sm:text-lg text-muted-foreground/90 max-w-xl mx-auto mb-10 leading-relaxed">
+          Type any topic. Our AI agents write, draw, and narrate an animated cartoon for your
           classroom in minutes.
         </p>
 
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={onSubmit} className="space-y-7 max-w-2xl mx-auto">
           <div className="relative">
             <input
               type="text"
@@ -81,13 +95,15 @@ function HomePage() {
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Why is the sky blue?"
               maxLength={140}
-              className="w-full text-lg sm:text-xl px-6 py-5 rounded-3xl border-2 border-border bg-card shadow-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 transition"
+              className="w-full text-lg sm:text-xl px-6 py-5 rounded-full bg-card border-2 border-border shadow-soft focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 transition"
               disabled={submitting}
             />
           </div>
 
           <div className="flex flex-col items-center gap-3">
-            <p className="text-sm font-semibold text-muted-foreground">For age</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              For age
+            </p>
             <div className="flex gap-2">
               {AGES.map((age) => (
                 <button
@@ -98,7 +114,7 @@ function HomePage() {
                   aria-pressed={ageBand === age}
                   className={`h-14 w-14 rounded-2xl font-extrabold text-xl transition-all ${
                     ageBand === age
-                      ? "bg-primary text-primary-foreground shadow-lg scale-110"
+                      ? "btn-gradient scale-110"
                       : "bg-card border-2 border-border text-foreground hover:border-primary"
                   }`}
                 >
@@ -108,16 +124,83 @@ function HomePage() {
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-extrabold text-lg px-8 py-4 rounded-full shadow-xl hover:scale-105 active:scale-100 transition-transform disabled:opacity-60 disabled:scale-100"
-          >
-            {submitting ? "Starting…" : "Create cartoon"}
-            <StarSparkle size={22} className="text-sunshine" />
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn-gradient hover:[--tw:0] inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0"
+            >
+              <Sparkles className="h-5 w-5" />
+              {submitting ? "Starting…" : "Create cartoon"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById("topics")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="inline-flex items-center gap-2 px-6 py-4 rounded-full border-2 border-border bg-card font-bold text-base hover:border-primary transition"
+            >
+              <BookOpen className="h-5 w-5" />
+              Browse topics
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <span className="softchip"><Shield className="h-3.5 w-3.5" /> Parent‑approved</span>
+            <span className="softchip"><Zap className="h-3.5 w-3.5 text-primary" /> Ready in minutes</span>
+            <span className="softchip"><Heart className="h-3.5 w-3.5 text-accent" /> Kid‑friendly</span>
+          </div>
         </form>
       </section>
+
+      {/* Popular topics */}
+      <section id="topics" className="mx-auto max-w-6xl px-4 py-14">
+        <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+              Try one in a tap
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold">Popular topics</h2>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {SAMPLE_TOPICS.map((t) => (
+            <button
+              key={t.label}
+              type="button"
+              disabled={submitting}
+              onClick={() => void submit(t.prompt)}
+              className="group relative bg-card border-2 border-border rounded-3xl p-4 sm:p-5 text-left hover:border-primary hover:shadow-medium hover:-translate-y-0.5 transition-all"
+            >
+              <div className="text-3xl sm:text-4xl mb-2 group-hover:scale-110 transition-transform">
+                {t.emoji}
+              </div>
+              <div className="font-extrabold text-sm sm:text-base">{t.label}</div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Feature row */}
+      <section className="mx-auto max-w-6xl px-4 pb-20">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <FeatureCard icon={<Zap className="h-5 w-5" />} title="Ready fast" body="From topic to cartoon in just a few minutes — no editing required." />
+          <FeatureCard icon={<Heart className="h-5 w-5" />} title="Kid‑friendly" body="Age‑appropriate vocabulary, bright art, and a warm narrator voice." />
+          <FeatureCard icon={<Shield className="h-5 w-5" />} title="Parent‑approved" body="A reviewer agent checks every cartoon before it reaches the player." />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function FeatureCard({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="bg-card border border-border rounded-3xl p-6 shadow-soft">
+      <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
+        {icon}
+      </div>
+      <h3 className="font-extrabold text-lg mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
     </div>
   );
 }
@@ -126,9 +209,9 @@ function Decor() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <div className="absolute top-10 left-6 text-sunshine twinkle"><StarSparkle size={28} /></div>
-      <div className="absolute top-32 right-10 text-primary-glow twinkle" style={{ animationDelay: "0.6s" }}><StarSparkle size={22} /></div>
-      <div className="absolute bottom-20 left-12 text-primary twinkle" style={{ animationDelay: "1.1s" }}><StarSparkle size={18} /></div>
-      <div className="absolute bottom-32 right-16 text-sunshine twinkle" style={{ animationDelay: "0.3s" }}><StarSparkle size={26} /></div>
+      <div className="absolute top-32 right-10 text-accent twinkle" style={{ animationDelay: "0.6s" }}><StarSparkle size={22} /></div>
+      <div className="absolute bottom-6 left-12 text-primary twinkle" style={{ animationDelay: "1.1s" }}><StarSparkle size={18} /></div>
+      <div className="absolute bottom-10 right-16 text-sunshine twinkle" style={{ animationDelay: "0.3s" }}><StarSparkle size={26} /></div>
     </div>
   );
 }
