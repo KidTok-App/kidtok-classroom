@@ -14,7 +14,7 @@ KidTok Classroom turns a parent's request like *"why do volcanoes erupt"* into a
 |---|---|
 | `/` (root) | React + Vite frontend (built with Lovable). Polls the agent service via `src/lib/agentApi.ts`. |
 | `agent-service/` | The multi-agent backend (Node 22 + TypeScript, strict). This is where everything below lives. |
-| `agent-service/legacy-reference/` | Battle-tested modules from the original KidTok product kept for reference. Their logic was **ported** into `agent-service/src/legacy/` (see `legacy-reference/PORTING.md`); files that referenced non-Google vendors were deleted after porting. |
+| `agent-service/legacy-reference/` | Battle-tested modules from the original KidTok product kept for reference. Their logic was **ported** into `agent-service/src/legacy/` (see `legacy-reference/PORTING.md`); files that referenced non-Google vendors were stripped to compliance stubs after porting (originals in git history). |
 
 ## Quickstart
 
@@ -162,7 +162,7 @@ kidtok-agent-service@1.0.0
 - ✅ `npm run build` — zero TypeScript errors (strict mode, `noUncheckedIndexedAccess`).
 - ✅ `npm run smoke` — full offline pipeline run (fake providers): two episodes through the live HTTP API; verified the status flow, exactly 5 scenes with image+audio+duration, animation cycling, reviewer span retrieval (15 spans), weakness detection, prompt improvement, and **episode 2 picking up the new prompt version** (`fake-v1 → fake-v2`).
 - ✅ Phoenix MCP server boot — the pinned `@arizeai/phoenix-mcp@2.3.7` was spawned from `node_modules` over stdio and its tool list verified: `get-latest-prompt`, `upsert-prompt`, `get-spans` all present (this server version exposes trace data via `get-spans`; it has no separate `list-traces` tool).
-- ✅ Forbidden-vendor sweep — `grep -ri` across `agent-service/` (shipped code) finds zero references to any non-Google AI/TTS/DB/queue/cloud vendor; legacy-reference files that mentioned them were deleted after porting (see `agent-service/legacy-reference/PORTING.md`).
+- ✅ Forbidden-vendor sweep — `grep -ri` across `agent-service/` (shipped code) finds zero references to any non-Google AI/TTS/DB/queue/cloud vendor; legacy-reference files that mentioned them were stripped to compliance stubs after porting (see `agent-service/legacy-reference/PORTING.md`).
 - ⚠️ `docker build` — **not executed** in the build environment (no Docker daemon available); the multi-stage Dockerfile was verified by inspection (`npm ci` → `tsc` → prod-deps-only runtime stage, `CMD node dist/index.js`, listens on `$PORT`).
 - ⏳ Real-credential E2E (`npm run e2e`) — ready to run as soon as `GOOGLE_CLOUD_PROJECT_ID`, `GCS_BUCKET`, `PHOENIX_HOST`, `PHOENIX_API_KEY`, and Application Default Credentials are provisioned. It executes the volcano episode, prints the full manifest, then runs a second episode and asserts the Phoenix prompt-version pickup.
 
