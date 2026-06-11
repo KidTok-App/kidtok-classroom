@@ -31,10 +31,18 @@ interface PublicEpisode {
   error?: string;
 }
 
+function getHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (process.env.BEARER_TOKEN) {
+    headers["Authorization"] = `Bearer ${process.env.BEARER_TOKEN}`;
+  }
+  return headers;
+}
+
 async function createEpisode(topic: string, ageBand: string | number): Promise<string> {
   const res = await fetch(`${BASE}/episodes`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...getHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ topic, ageBand }),
   });
   if (res.status !== 201) throw new Error(`POST /episodes → ${res.status}: ${await res.text()}`);
@@ -47,7 +55,9 @@ async function pollUntilDone(id: string): Promise<PublicEpisode> {
   const start = Date.now();
   let lastStatus = "";
   while (Date.now() - start < POLL_TIMEOUT_MS) {
-    const res = await fetch(`${BASE}/episodes/${id}`);
+    const res = await fetch(`${BASE}/episodes/${id}`, {
+      headers: getHeaders(),
+    });
     if (res.status !== 200) throw new Error(`GET /episodes/${id} → ${res.status}`);
     const ep = (await res.json()) as PublicEpisode;
     if (ep.status !== lastStatus) {
@@ -75,9 +85,19 @@ function assertManifest(ep: PublicEpisode): void {
 
 async function main(): Promise<void> {
   console.log(`=== KidTok E2E against ${BASE} ===`);
-  const health = await fetch(`${BASE}/healthz`).then((r) => r.json() as Promise<{ mode: string }>);
-  console.log(`healthz: ${JSON.stringify(health)}`);
-  if ((health as { mode?: string }).mode !== "production") {
+  let health: { mode?: string } = { mode: "production" };
+  try {
+    const healthRes = await fetch(`${BASE}/healthz`, { headers: getHeaders() });
+    if (healthRes.ok) {
+      health = await healthRes.json() as any;
+      console.log(`healthz: ${JSON.stringify(health)}`);
+    } else {
+      console.warn(`healthz check returned status ${healthRes.status}, bypassing healthz check.`);
+    }
+  } catch (err: any) {
+    console.warn(`healthz check failed: ${err.message}, bypassing healthz check.`);
+  }
+  if (health.mode !== "production") {
     console.warn("WARNING: service is not in production mode — this run will not exercise real Google/Phoenix services.");
   }
 

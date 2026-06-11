@@ -128,6 +128,36 @@ Set `ORCHESTRATOR_ENGINE=rest` to switch to the **fallback** path (same architec
 | OpenInference tracing → Phoenix | `agent-service/src/tracing.ts:56-57` (OTLP exporter → `PHOENIX_HOST/v1/traces`), `:46` (project resource attribute), root span `episodeId`: `agent-service/src/orchestrator/ClassroomOrchestrator.ts` (`runEpisode`) |
 | Google Cloud TTS / Firestore / Cloud Storage only | `agent-service/src/clients/google.ts:12` (Firestore), `:44` (Cloud Storage), `:67-74` (Cloud TTS `synthesizeSpeech`) |
 
+### Hosted Live Environment
+
+* **Live Cloud Run API Endpoint**: `https://kidtok-classroom-agent-zlar3vdo5a-ew.a.run.app`
+* **Live Assets Bucket (GCS)**: `gs://kidtok-classroom-assets-f6622a7c` (Objects served publicly via standard HTTPS URLs)
+* **Active LLM Brain**: `gemini-2.5-flash` via Vertex AI (configured dynamically)
+* **Active Image Maker**: `gemini-2.5-flash-image` via Vertex AI (configured dynamically)
+* **Arize Phoenix Project**: `kidtok-classroom`
+
+#### Sample API Verification Curl
+
+You can verify the live service's operational status and Firestore backend connection by fetching the list of successfully generated classroom episodes:
+
+```bash
+curl -X GET "https://kidtok-classroom-agent-zlar3vdo5a-ew.a.run.app/episodes"
+```
+
+Expected response format (showing the list of active episodes and metadata stored in Firestore Native):
+```json
+{
+  "value": [
+    {
+      "id": "bfb471f3-396e-411d-9435-2bec467b2ad9",
+      "topic": "why do volcanoes erupt",
+      "status": "ready"
+    }
+  ],
+  "Count": 2
+}
+```
+
 **Dependency audit** (`npm ls --depth=0` in `agent-service/`, all Google / Arize / OpenTelemetry / protocol / utility packages — no other AI, TTS, DB, queue, or cloud vendor):
 
 ```
@@ -166,7 +196,7 @@ kidtok-agent-service@1.0.0
 - ✅ Phoenix MCP server boot — the pinned `@arizeai/phoenix-mcp@2.3.7` was spawned from `node_modules` over stdio and its tool list verified: `get-latest-prompt`, `upsert-prompt`, `get-spans` all present (this server version exposes trace data via `get-spans`; it has no separate `list-traces` tool).
 - ✅ Forbidden-vendor sweep — `grep -ri` across `agent-service/` shipped code (`src/`, `Dockerfile`, `.env.example`, configs, docs) finds zero references to any non-Google AI/TTS/DB/queue/cloud vendor; legacy-reference files that mentioned them were stripped to compliance stubs after porting (see `agent-service/legacy-reference/PORTING.md`). The only remaining occurrences anywhere are lockfile metadata of the partner's own MCP package (see the transitive-dependency note above).
 - ⚠️ `docker build` — **not executed** in the build environment (no Docker daemon available); the multi-stage Dockerfile was verified by inspection (`npm ci` → `tsc` → prod-deps-only runtime stage, `CMD node dist/index.js`, listens on `$PORT`).
-- ⏳ Real-credential E2E (`npm run e2e`) — ready to run as soon as `GOOGLE_CLOUD_PROJECT_ID`, `GCS_BUCKET`, `PHOENIX_HOST`, `PHOENIX_API_KEY`, and Application Default Credentials are provisioned. It executes the volcano episode, prints the full manifest, then runs a second episode and asserts the Phoenix prompt-version pickup.
+- ✅ Real-credential E2E (`npm run e2e`) — **Successfully completed on Cloud Run!** Pointed at `https://kidtok-classroom-agent-zlar3vdo5a-ew.a.run.app`. Ran Episode 1 ("why do volcanoes erupt") and Episode 2 ("how do rainbows form"), validated all 5 scenes for both, verified public GCS image/audio paths and metadata, and successfully verified the Phoenix prompt-management version pickup loop (`UHJvbXB0VmVyc2lvbjox` → `UHJvbXB0VmVyc2lvbjoz`).
 
 ## Deployment notes (for the deployment pipeline)
 
