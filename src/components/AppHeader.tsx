@@ -31,6 +31,12 @@ export function AppHeader() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Auto-close sign-in dialog once a user is authenticated (Google or mock)
+  useEffect(() => {
+    if (user && dialogOpen) setDialogOpen(false);
+  }, [user, dialogOpen]);
+
+
   // Trigger Google button rendering when Dialog opens
   useEffect(() => {
     if (!dialogOpen || !googleClientId) return;
