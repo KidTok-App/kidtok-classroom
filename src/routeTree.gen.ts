@@ -14,6 +14,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EpisodeIdRouteImport } from './routes/episode.$id'
 import { Route as ApiAgentEpisodesRouteImport } from './routes/api/agent/episodes'
+import { Route as ApiAgentConfigRouteImport } from './routes/api/agent/config'
 import { Route as ApiAgentEpisodesIdRouteImport } from './routes/api/agent/episodes.$id'
 
 const LibraryRoute = LibraryRouteImport.update({
@@ -41,6 +42,11 @@ const ApiAgentEpisodesRoute = ApiAgentEpisodesRouteImport.update({
   path: '/api/agent/episodes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentConfigRoute = ApiAgentConfigRouteImport.update({
+  id: '/api/agent/config',
+  path: '/api/agent/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentEpisodesIdRoute = ApiAgentEpisodesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/episode/$id': typeof EpisodeIdRoute
+  '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/episode/$id': typeof EpisodeIdRoute
+  '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/episode/$id': typeof EpisodeIdRoute
+  '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/library'
     | '/episode/$id'
+    | '/api/agent/config'
     | '/api/agent/episodes'
     | '/api/agent/episodes/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/library'
     | '/episode/$id'
+    | '/api/agent/config'
     | '/api/agent/episodes'
     | '/api/agent/episodes/$id'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/library'
     | '/episode/$id'
+    | '/api/agent/config'
     | '/api/agent/episodes'
     | '/api/agent/episodes/$id'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   LibraryRoute: typeof LibraryRoute
   EpisodeIdRoute: typeof EpisodeIdRoute
+  ApiAgentConfigRoute: typeof ApiAgentConfigRoute
   ApiAgentEpisodesRoute: typeof ApiAgentEpisodesRouteWithChildren
 }
 
@@ -144,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentEpisodesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent/config': {
+      id: '/api/agent/config'
+      path: '/api/agent/config'
+      fullPath: '/api/agent/config'
+      preLoaderRoute: typeof ApiAgentConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/agent/episodes/$id': {
       id: '/api/agent/episodes/$id'
       path: '/$id'
@@ -170,8 +190,19 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   LibraryRoute: LibraryRoute,
   EpisodeIdRoute: EpisodeIdRoute,
+  ApiAgentConfigRoute: ApiAgentConfigRoute,
   ApiAgentEpisodesRoute: ApiAgentEpisodesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

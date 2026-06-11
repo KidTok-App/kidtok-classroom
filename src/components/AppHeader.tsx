@@ -155,7 +155,7 @@ export function AppHeader() {
                   ⚠️ Live Google Login is waiting for a Client ID!
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-1 leading-normal font-medium">
-                  To activate real Google Sign-In, please set the <strong>VITE_GOOGLE_CLIENT_ID</strong> environment variable in your Lovable Project Settings or local <code>.env</code> file.
+                  To activate real Google Sign-In, please set the <strong>GOOGLE_CLIENT_ID</strong> secret in Lovable, or <strong>VITE_GOOGLE_CLIENT_ID</strong> in your local <code>.env</code> file.
                 </p>
               </div>
             )}

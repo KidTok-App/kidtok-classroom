@@ -24,8 +24,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Retrieve client ID from Vite env
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || null;
+  // Retrieve client ID from Vite env or dynamic state
+  const [googleClientId, setGoogleClientId] = useState<string | null>(
+    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || null
+  );
+
+  // Fetch secure GOOGLE_CLIENT_ID dynamically if not provided at build-time
+  useEffect(() => {
+    if (!googleClientId) {
+      fetch("/api/agent/config")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.googleClientId) {
+            setGoogleClientId(data.googleClientId);
+          }
+        })
+        .catch((err) => console.warn("Failed to load Google Client ID dynamically:", err));
+    }
+  }, [googleClientId]);
 
   // Initialize auth from localStorage on mount
   useEffect(() => {
