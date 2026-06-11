@@ -1,0 +1,46 @@
+{
+  "name": "kidtok-agent-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KidTok Classroom agent service — multi-agent pipeline that generates educational cartoon episodes (Google ADK + Vertex AI Gemini + Cloud TTS + Firestore + Cloud Storage + Arize Phoenix).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "smoke": "tsx src/scripts/smoke.ts",
+    "e2e": "tsx src/scripts/e2e.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arizeai/openinference-semantic-conventions": "^2.1.0",
+    "@arizeai/phoenix-mcp": "^2.2.0",
+    "@google-cloud/firestore": "^7.11.0",
+    "@google-cloud/storage": "^7.16.0",
+    "@google-cloud/text-to-speech": "^6.0.0",
+    "@google/adk": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.57.0",
+    "@opentelemetry/resources": "^1.30.0",
+    "@opentelemetry/sdk-trace-base": "^1.30.0",
+    "@opentelemetry/sdk-trace-node": "^1.30.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "google-auth-library": "^9.15.0",
+    "music-metadata": "^11.0.0",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
