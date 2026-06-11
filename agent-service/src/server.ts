@@ -9,7 +9,6 @@
 
 import crypto from "node:crypto";
 import express, { type Express } from "express";
-import cors from "cors";
 import type { EpisodeStore } from "./clients/interfaces.js";
 import type { ServiceConfig } from "./config.js";
 import { toPublicEpisode, type EpisodeDoc } from "./types.js";
@@ -24,7 +23,37 @@ export interface ServerDeps {
 
 export function createServer(deps: ServerDeps): Express {
   const app = express();
-  app.use(cors());
+  
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      let isAllowed = false;
+      if (origin === "http://localhost:5173" || origin === "http://localhost:8080") {
+        isAllowed = true;
+      } else if (origin.startsWith("https://")) {
+        const hostname = origin.slice(8);
+        if (hostname === "lovable.app" || hostname === "lovableproject.com" || hostname.endsWith(".lovable.app") || hostname.endsWith(".lovableproject.com")) {
+          isAllowed = true;
+        }
+      }
+
+      if (isAllowed) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.setHeader("Access-Control-Max-Age", "86400");
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+      }
+    }
+
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+
+    next();
+  });
+
   app.use(express.json({ limit: "256kb" }));
 
   if (deps.localAssetsDir) {
