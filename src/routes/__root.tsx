@@ -93,6 +93,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "KidTok Classroom" },
+      { name: "description", content: "Educational cartoon episodes for kids ages 5–8." },
+      { property: "og:description", content: "Educational cartoon episodes for kids ages 5–8." },
+      { name: "twitter:description", content: "Educational cartoon episodes for kids ages 5–8." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xkHG1CWJpoebU5Wc5jr6Lo11kjf2/social-images/social-1781189501614-KidTokLogo-text-wbg-2.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xkHG1CWJpoebU5Wc5jr6Lo11kjf2/social-images/social-1781189501614-KidTokLogo-text-wbg-2.webp" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
