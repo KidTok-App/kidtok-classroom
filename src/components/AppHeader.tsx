@@ -1,6 +1,60 @@
+import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogOut, LogIn, Sparkles } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+const mockUsers = [
+  {
+    id: "teacher-emily",
+    name: "Ms. Emily",
+    email: "emily@kidtokai.com",
+    picture: "https://api.dicebear.com/7.x/adventurer/svg?seed=emily",
+  },
+  {
+    id: "parent-alex",
+    name: "Mr. Alex",
+    email: "alex@kidtokai.com",
+    picture: "https://api.dicebear.com/7.x/adventurer/svg?seed=alex",
+  },
+];
 
 export function AppHeader() {
+  const { user, signInWithMock, signOut, googleClientId } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Trigger Google button rendering when Dialog opens
+  useEffect(() => {
+    if (!dialogOpen || !googleClientId) return;
+
+    let buttonRendered = false;
+    const renderInterval = setInterval(() => {
+      const btnDiv = document.getElementById("google-signin-btn-dialog");
+      const google = (window as any).google;
+      if (btnDiv && google?.accounts?.id) {
+        google.accounts.id.renderButton(btnDiv, {
+          theme: "outline",
+          size: "large",
+          width: 280,
+          text: "signin_with",
+          shape: "pill",
+        });
+        buttonRendered = true;
+        clearInterval(renderInterval);
+      }
+    }, 100);
+
+    return () => clearInterval(renderInterval);
+  }, [dialogOpen, googleClientId]);
+
   return (
     <header className="sticky top-0 z-40 backdrop-blur-md bg-background/80 border-b border-border/60">
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between gap-3">
@@ -16,12 +70,119 @@ export function AppHeader() {
             Classroom
           </span>
         </Link>
-        <nav className="flex items-center gap-1 text-sm font-semibold">
-          <NavLink to="/">Create</NavLink>
-          <NavLink to="/library">Library</NavLink>
-          <NavLink to="/about">About</NavLink>
-        </nav>
+        
+        <div className="flex items-center gap-6">
+          <nav className="flex items-center gap-1 text-sm font-semibold">
+            <NavLink to="/">Create</NavLink>
+            <NavLink to="/library">Library</NavLink>
+            <NavLink to="/about">About</NavLink>
+          </nav>
+
+          <div className="h-6 w-[1px] bg-border/60 hidden sm:block" />
+
+          {/* User Auth Controls */}
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2 rounded-full hover:bg-secondary p-1 transition cursor-pointer"
+              >
+                <Avatar className="h-8 w-8 border border-border">
+                  <AvatarImage src={user.picture} alt={user.name} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                    {user.name[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden md:inline text-xs font-bold pr-1">{user.name}</span>
+              </button>
+              
+              {dropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setDropdownOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-48 bg-card border border-border/80 rounded-2xl shadow-lg p-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="px-3 py-2 text-[11px] font-bold text-muted-foreground border-b border-border/40">
+                      Logged in as <span className="font-extrabold text-foreground block truncate">{user.name}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2.5 text-xs font-bold text-destructive hover:bg-destructive/10 rounded-xl transition flex items-center gap-2 cursor-pointer mt-1"
+                    >
+                      <LogOut className="h-4 w-4" /> Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 text-xs font-extrabold px-3.5 py-2 rounded-full cursor-pointer"
+            >
+              <LogIn className="h-3.5 w-3.5" /> Sign In
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Modern, kid-friendly authentication Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md bg-card border-2 border-border rounded-3xl p-6 sm:p-8">
+          <DialogHeader className="flex flex-col items-center text-center space-y-2">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-1">
+              <Sparkles className="h-6 w-6 animate-pulse" />
+            </div>
+            <DialogTitle className="text-2xl font-extrabold tracking-tight">
+              Create your library
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground max-w-[280px]">
+              Sign in to keep your custom cartoons isolated and safe in your private classroom library.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center gap-4 py-4 w-full">
+            {/* Google GSI Standard Button container */}
+            <div id="google-signin-btn-dialog" className="min-h-[44px] flex items-center justify-center" />
+
+            <div className="flex items-center gap-2 w-full max-w-[280px] py-1">
+              <div className="h-[1px] bg-border/60 flex-1" />
+              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                Or developer bypass
+              </span>
+              <div className="h-[1px] bg-border/60 flex-1" />
+            </div>
+
+            {/* Quick Mock Developer Selector */}
+            <div className="grid grid-cols-2 gap-3 w-full max-w-[320px]">
+              {mockUsers.map((mu) => (
+                <button
+                  key={mu.id}
+                  onClick={() => {
+                    signInWithMock(mu);
+                    setDialogOpen(false);
+                  }}
+                  className="flex flex-col items-center justify-center p-3 border-2 border-border/80 rounded-2xl bg-background/50 hover:border-primary hover:bg-primary/5 transition-all text-center group cursor-pointer"
+                >
+                  <img
+                    src={mu.picture}
+                    alt={mu.name}
+                    className="w-12 h-12 rounded-full mb-1 bg-muted border border-border group-hover:scale-105 transition-transform"
+                  />
+                  <span className="text-xs font-bold text-foreground">{mu.name}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {mu.id.startsWith("teacher") ? "Teacher" : "Parent"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }
@@ -38,3 +199,4 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
     </Link>
   );
 }
+

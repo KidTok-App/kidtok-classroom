@@ -14,6 +14,7 @@ export type AgentStatus =
   | "generating_images"
   | "narrating"
   | "reviewing"
+  | "preloading"
   | "ready"
   | "failed";
 
@@ -38,6 +39,15 @@ export interface Episode {
   error?: string;
 }
 
+export function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("kidtok_id_token");
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = "";
@@ -58,19 +68,26 @@ export async function createEpisode(input: {
 }): Promise<{ id: string }> {
   const res = await fetch(`${BASE}/episodes`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify(input),
   });
   return handle(res);
 }
 
 export async function getEpisode(id: string): Promise<Episode> {
-  const res = await fetch(`${BASE}/episodes/${encodeURIComponent(id)}`);
+  const res = await fetch(`${BASE}/episodes/${encodeURIComponent(id)}`, {
+    headers: getAuthHeaders(),
+  });
   return handle(res);
 }
 
 export async function listEpisodes(): Promise<Episode[]> {
-  const res = await fetch(`${BASE}/episodes`);
+  const res = await fetch(`${BASE}/episodes`, {
+    headers: getAuthHeaders(),
+  });
   return handle(res);
 }
 
@@ -80,7 +97,8 @@ export const STATUS_COPY: Record<AgentStatus, { title: string; subtitle: string;
   generating_images: { title: "Drawing the cartoon…", subtitle: "Our artist agent is painting every scene.", step: 3 },
   narrating: { title: "Recording the voice…", subtitle: "A friendly narrator is reading the story.", step: 4 },
   reviewing: { title: "Double‑checking everything…", subtitle: "Making sure it's kid‑perfect.", step: 5 },
-  ready: { title: "Your cartoon is ready!", subtitle: "Press play to start watching.", step: 6 },
+  preloading: { title: "Tuning the magic player…", subtitle: "Gathering voice recordings and custom paintings.", step: 6 },
+  ready: { title: "Your cartoon is ready!", subtitle: "Press play to start watching.", step: 7 },
   failed: { title: "Something went wrong", subtitle: "Please try again in a moment.", step: 0 },
 };
 
@@ -90,5 +108,6 @@ export const PIPELINE_STEPS = [
   "Images",
   "Narration",
   "Review",
+  "Tuning",
   "Ready",
 ];

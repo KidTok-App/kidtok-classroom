@@ -21,6 +21,50 @@ export interface ServerDeps {
   localAssetsDir?: string;
 }
 
+/**
+ * Lightweight in-process parser for Google ID Tokens (JWT) and Dev mock tokens.
+ * Extracts the user sub claim (id) and name safely.
+ */
+function parseAuthToken(authHeader?: string): { id: string; name: string } | null {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  const token = authHeader.substring(7).trim();
+  if (!token) return null;
+
+  // 1. Mock token support (for dev selector bypass)
+  if (token.startsWith("mock-token-")) {
+    const id = token.substring("mock-token-".length);
+    // Capitalize and format name
+    const name = id.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return { id, name };
+  }
+
+  // 2. Google JWT decoding
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payloadB64 = parts[1] || "";
+    const payloadStr = Buffer.from(payloadB64, "base64").toString("utf8");
+    const payload = JSON.parse(payloadStr);
+
+    if (payload.exp && typeof payload.exp === "number") {
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (nowSec > payload.exp) {
+        console.warn("[auth] Google JWT token expired");
+        return null;
+      }
+    }
+
+    if (!payload.sub) return null;
+    return {
+      id: payload.sub,
+      name: payload.name || payload.given_name || "Google User",
+    };
+  } catch (err) {
+    console.error("[auth] Failed to parse JWT:", err);
+    return null;
+  }
+}
+
 export function createServer(deps: ServerDeps): Express {
   const app = express();
   
@@ -71,6 +115,9 @@ export function createServer(deps: ServerDeps): Express {
 
   app.post("/episodes", async (req, res) => {
     try {
+      const authHeader = req.headers.authorization;
+      const caller = parseAuthToken(authHeader);
+
       const body = (req.body ?? {}) as { topic?: unknown; ageBand?: unknown };
       const topic = typeof body.topic === "string" ? body.topic.trim() : "";
       const ageBand = Number(body.ageBand);
@@ -90,6 +137,7 @@ export function createServer(deps: ServerDeps): Express {
         ageBand,
         createdAt: new Date().toISOString(),
         status: "scripting",
+        ...(caller ? { ownerId: caller.id } : {}),
       };
       await deps.store.create(doc);
       deps.startEpisode(doc); // pipeline runs async in-process
@@ -114,9 +162,14 @@ export function createServer(deps: ServerDeps): Express {
     }
   });
 
-  app.get("/episodes", async (_req, res) => {
+  app.get("/episodes", async (req, res) => {
     try {
-      const docs = await deps.store.list(50);
+      const authHeader = req.headers.authorization;
+      const caller = parseAuthToken(authHeader);
+
+      // Return only episodes owned by this caller if authenticated
+      const ownerId = caller ? caller.id : undefined;
+      const docs = await deps.store.list(ownerId, 50);
       res.json(docs.map(toPublicEpisode));
     } catch (err) {
       console.error("[api] GET /episodes failed:", err);

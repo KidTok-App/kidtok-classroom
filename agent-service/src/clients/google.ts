@@ -31,13 +31,25 @@ export class FirestoreEpisodeStore implements EpisodeStore {
     return snap.exists ? (snap.data() as EpisodeDoc) : null;
   }
 
-  async list(limit = 50): Promise<EpisodeDoc[]> {
-    const snap = await this.db
-      .collection(this.collection)
-      .orderBy("createdAt", "desc")
-      .limit(limit)
-      .get();
-    return snap.docs.map((d) => d.data() as EpisodeDoc);
+  async list(ownerId?: string, limit = 50): Promise<EpisodeDoc[]> {
+    let query: any = this.db.collection(this.collection);
+    if (ownerId) {
+      query = query.where("ownerId", "==", ownerId);
+    }
+    const snap = await query.get();
+    let docs = snap.docs.map((d: any) => d.data() as EpisodeDoc);
+    
+    // Sort descending by createdAt in memory to avoid Firestore composite index requirement
+    docs.sort((a: EpisodeDoc, b: EpisodeDoc) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    if (limit) {
+      docs = docs.slice(0, limit);
+    }
+    return docs;
   }
 }
 

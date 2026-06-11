@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppHeader } from "../components/AppHeader";
 import { EnvBanner } from "../components/EnvBanner";
 import { Toaster } from "../components/ui/sonner";
+import { AuthProvider } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -122,6 +123,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
       <body>
         {children}
@@ -136,14 +138,16 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen flex flex-col">
-        <EnvBanner />
-        <AppHeader />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <Toaster richColors position="top-center" />
-      </div>
+      <AuthProvider>
+        <div className="min-h-screen flex flex-col">
+          <EnvBanner />
+          <AppHeader />
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          <Toaster richColors position="top-center" />
+        </div>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/agent/episodes/$id")({
   server: {
     handlers: {
-      GET: async ({ params }) => {
+      GET: async ({ params, request }) => {
+        const authHeader = request.headers.get("Authorization");
         const base = process.env.AGENT_API_URL;
         if (!base) {
           return new Response(
@@ -12,8 +13,11 @@ export const Route = createFileRoute("/api/agent/episodes/$id")({
           );
         }
         try {
+          const headers: HeadersInit = {};
+          if (authHeader) headers["Authorization"] = authHeader;
           const upstream = await fetch(
             `${base.replace(/\/$/, "")}/episodes/${encodeURIComponent(params.id)}`,
+            { headers }
           );
           const body = await upstream.arrayBuffer();
           return new Response(body, {
@@ -35,3 +39,4 @@ export const Route = createFileRoute("/api/agent/episodes/$id")({
     },
   },
 });
+

@@ -156,8 +156,12 @@ export class InMemoryEpisodeStore implements EpisodeStore {
     const doc = this.docs.get(id);
     return doc ? structuredClone(doc) : null;
   }
-  async list(limit = 50): Promise<EpisodeDoc[]> {
-    return [...this.docs.values()]
+  async list(ownerId?: string, limit = 50): Promise<EpisodeDoc[]> {
+    let items = [...this.docs.values()];
+    if (ownerId) {
+      items = items.filter((d) => d.ownerId === ownerId);
+    }
+    return items
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit)
       .map((d) => structuredClone(d));

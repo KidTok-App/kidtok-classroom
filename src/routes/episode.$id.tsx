@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
 import { getEpisode, isApiConfigured } from "@/lib/agentApi";
 import { CartoonPlayer } from "@/components/CartoonPlayer";
 import { StatusScreen } from "@/components/StatusScreen";
@@ -38,6 +39,8 @@ export const Route = createFileRoute("/episode/$id")({
 
 function EpisodePage() {
   const { id } = Route.useParams();
+  const [preloadingProgress, setPreloadingProgress] = useState(0);
+  const [isPreloaded, setIsPreloaded] = useState(false);
 
   const { data, error } = useQuery({
     queryKey: ["episode", id],
@@ -48,6 +51,64 @@ function EpisodePage() {
       return s === "ready" || s === "failed" ? false : 3000;
     },
   });
+
+  const status = data?.status;
+  const scenes = data?.scenes;
+
+  useEffect(() => {
+    if (status !== "ready" || !scenes || scenes.length === 0 || isPreloaded) {
+      return;
+    }
+
+    let active = true;
+    const totalAssets = scenes.length * 2; // Image + Audio per scene
+    let loadedAssets = 0;
+
+    const incrementProgress = () => {
+      if (!active) return;
+      loadedAssets++;
+      const pct = Math.round((loadedAssets / totalAssets) * 100);
+      setPreloadingProgress(pct);
+      if (loadedAssets >= totalAssets) {
+        setIsPreloaded(true);
+      }
+    };
+
+    // Set safety timeout of 5 seconds to bypass preloading if network is slow or autoplay blocked
+    const timeoutId = setTimeout(() => {
+      if (active) {
+        console.log("Preloading safety timeout hit, revealing player...");
+        setIsPreloaded(true);
+      }
+    }, 5000);
+
+    scenes.forEach((scene) => {
+      // Preload Image
+      const img = new Image();
+      img.src = scene.imageUrl;
+      img.onload = incrementProgress;
+      img.onerror = incrementProgress; // Count as loaded even on error so we don't hang
+
+      // Preload Audio
+      const audio = new Audio();
+      audio.src = scene.audioUrl;
+      audio.preload = "auto";
+      
+      const handleAudioLoad = () => {
+        audio.removeEventListener("canplaythrough", handleAudioLoad);
+        audio.removeEventListener("error", handleAudioLoad);
+        incrementProgress();
+      };
+      
+      audio.addEventListener("canplaythrough", handleAudioLoad);
+      audio.addEventListener("error", handleAudioLoad);
+    });
+
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+    };
+  }, [status, scenes, isPreloaded]);
 
   if (!isApiConfigured()) {
     return (
@@ -75,6 +136,10 @@ function EpisodePage() {
   }
 
   if (data.status === "ready" && data.scenes && data.scenes.length > 0) {
+    if (!isPreloaded) {
+      return <StatusScreen status="preloading" progress={preloadingProgress} topic={data.topic} />;
+    }
+
     return (
       <div className="mx-auto max-w-5xl px-3 sm:px-4 py-6">
         <Link to="/" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground mb-4">

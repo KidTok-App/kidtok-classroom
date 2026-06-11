@@ -73,6 +73,7 @@ export interface EpisodeDoc {
   ageBand: number;
   createdAt: string; // ISO
   status: AgentStatus;
+  ownerId?: string;
   title?: string;
   scenes?: SceneAsset[];
   review?: EpisodeReview;
@@ -88,6 +89,7 @@ export function toPublicEpisode(doc: EpisodeDoc): Record<string, unknown> {
     ageBand: doc.ageBand,
     createdAt: doc.createdAt,
     status: doc.status,
+    ...(doc.ownerId ? { ownerId: doc.ownerId } : {}),
     ...(doc.title ? { title: doc.title } : {}),
     ...(doc.scenes ? { scenes: doc.scenes } : {}),
     ...(doc.review ? { review: doc.review } : {}),

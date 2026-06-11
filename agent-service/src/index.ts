@@ -15,6 +15,7 @@ import type { Providers, TextLlm } from "./clients/interfaces.js";
 import { VertexAuth, VertexGeminiImageGen, VertexRestTextLlm } from "./clients/gemini.js";
 import { GeminiVisualSafetyClassifier } from "./clients/imageSafety.js";
 import { FirestoreEpisodeStore, GcsAssetStorage, GoogleSpeechSynth } from "./clients/google.js";
+import { ElevenLabsSpeechSynth } from "./clients/elevenlabs.js";
 import { PhoenixMcpClient } from "./clients/phoenixMcp.js";
 import {
   FakeImageGen,
@@ -80,7 +81,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
         cfg.textModel,
         cfg.enableVisualSafety,
       ),
-      tts: new GoogleSpeechSynth(),
+      tts: cfg.elevenlabsApiKey ? new ElevenLabsSpeechSynth(cfg.elevenlabsApiKey) : new GoogleSpeechSynth(),
       storage: new GcsAssetStorage(cfg.projectId, cfg.gcsBucket),
       store: new FirestoreEpisodeStore(cfg.projectId, cfg.firestoreCollection),
       phoenix: new PhoenixMcpClient({

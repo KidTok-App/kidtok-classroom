@@ -75,7 +75,7 @@ export interface EpisodeStore {
   create(doc: EpisodeDoc): Promise<void>;
   update(id: string, patch: Partial<EpisodeDoc>): Promise<void>;
   get(id: string): Promise<EpisodeDoc | null>;
-  list(limit?: number): Promise<EpisodeDoc[]>;
+  list(ownerId?: string, limit?: number): Promise<EpisodeDoc[]>;
 }
 
 export interface PromptVersion {

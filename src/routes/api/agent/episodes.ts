@@ -36,15 +36,24 @@ async function forward(path: string, init?: RequestInit): Promise<Response> {
 export const Route = createFileRoute("/api/agent/episodes")({
   server: {
     handlers: {
-      GET: async () => forward("/episodes"),
+      GET: async ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        const headers: HeadersInit = {};
+        if (authHeader) headers["Authorization"] = authHeader;
+        return forward("/episodes", { headers });
+      },
       POST: async ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
         const body = await request.text();
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (authHeader) headers["Authorization"] = authHeader;
         return forward("/episodes", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body,
         });
       },
     },
   },
 });
+
