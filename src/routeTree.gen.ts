@@ -13,6 +13,8 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EpisodeIdRouteImport } from './routes/episode.$id'
+import { Route as ApiAgentEpisodesRouteImport } from './routes/api/agent/episodes'
+import { Route as ApiAgentEpisodesIdRouteImport } from './routes/api/agent/episodes.$id'
 
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
@@ -34,18 +36,32 @@ const EpisodeIdRoute = EpisodeIdRouteImport.update({
   path: '/episode/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentEpisodesRoute = ApiAgentEpisodesRouteImport.update({
+  id: '/api/agent/episodes',
+  path: '/api/agent/episodes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentEpisodesIdRoute = ApiAgentEpisodesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAgentEpisodesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/episode/$id': typeof EpisodeIdRoute
+  '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
+  '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/episode/$id': typeof EpisodeIdRoute
+  '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
+  '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +69,34 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/episode/$id': typeof EpisodeIdRoute
+  '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
+  '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/library' | '/episode/$id'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/library'
+    | '/episode/$id'
+    | '/api/agent/episodes'
+    | '/api/agent/episodes/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/library' | '/episode/$id'
-  id: '__root__' | '/' | '/about' | '/library' | '/episode/$id'
+  to:
+    | '/'
+    | '/about'
+    | '/library'
+    | '/episode/$id'
+    | '/api/agent/episodes'
+    | '/api/agent/episodes/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/library'
+    | '/episode/$id'
+    | '/api/agent/episodes'
+    | '/api/agent/episodes/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +104,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   LibraryRoute: typeof LibraryRoute
   EpisodeIdRoute: typeof EpisodeIdRoute
+  ApiAgentEpisodesRoute: typeof ApiAgentEpisodesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -99,25 +137,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EpisodeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent/episodes': {
+      id: '/api/agent/episodes'
+      path: '/api/agent/episodes'
+      fullPath: '/api/agent/episodes'
+      preLoaderRoute: typeof ApiAgentEpisodesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent/episodes/$id': {
+      id: '/api/agent/episodes/$id'
+      path: '/$id'
+      fullPath: '/api/agent/episodes/$id'
+      preLoaderRoute: typeof ApiAgentEpisodesIdRouteImport
+      parentRoute: typeof ApiAgentEpisodesRoute
+    }
   }
 }
+
+interface ApiAgentEpisodesRouteChildren {
+  ApiAgentEpisodesIdRoute: typeof ApiAgentEpisodesIdRoute
+}
+
+const ApiAgentEpisodesRouteChildren: ApiAgentEpisodesRouteChildren = {
+  ApiAgentEpisodesIdRoute: ApiAgentEpisodesIdRoute,
+}
+
+const ApiAgentEpisodesRouteWithChildren =
+  ApiAgentEpisodesRoute._addFileChildren(ApiAgentEpisodesRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   LibraryRoute: LibraryRoute,
   EpisodeIdRoute: EpisodeIdRoute,
+  ApiAgentEpisodesRoute: ApiAgentEpisodesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

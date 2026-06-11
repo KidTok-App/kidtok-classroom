@@ -1,9 +1,12 @@
 // All backend access for KidTok Classroom goes through this module.
-// Swap backends by changing VITE_AGENT_API_URL — no other file should call the API directly.
+// Requests are proxied via /api/agent/* server routes, which read the
+// AGENT_API_URL secret on the server. No public env var is needed.
 
-const BASE = import.meta.env.VITE_AGENT_API_URL as string | undefined;
+const BASE = "/api/agent";
 
-export const isApiConfigured = (): boolean => Boolean(BASE && BASE.length > 0);
+// The proxy is always present in this build. Configuration errors surface
+// as a 500 from the server route, with a helpful message in the body.
+export const isApiConfigured = (): boolean => true;
 
 export type AgentStatus =
   | "scripting"
@@ -35,15 +38,6 @@ export interface Episode {
   error?: string;
 }
 
-function requireBase(): string {
-  if (!BASE) {
-    throw new Error(
-      "The cartoon backend isn't configured yet. Please set VITE_AGENT_API_URL.",
-    );
-  }
-  return BASE.replace(/\/$/, "");
-}
-
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = "";
@@ -62,7 +56,7 @@ export async function createEpisode(input: {
   topic: string;
   ageBand: number;
 }): Promise<{ id: string }> {
-  const res = await fetch(`${requireBase()}/episodes`, {
+  const res = await fetch(`${BASE}/episodes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -71,12 +65,12 @@ export async function createEpisode(input: {
 }
 
 export async function getEpisode(id: string): Promise<Episode> {
-  const res = await fetch(`${requireBase()}/episodes/${encodeURIComponent(id)}`);
+  const res = await fetch(`${BASE}/episodes/${encodeURIComponent(id)}`);
   return handle(res);
 }
 
 export async function listEpisodes(): Promise<Episode[]> {
-  const res = await fetch(`${requireBase()}/episodes`);
+  const res = await fetch(`${BASE}/episodes`);
   return handle(res);
 }
 
