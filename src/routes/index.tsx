@@ -44,6 +44,8 @@ function HomePage() {
   const [ageBand, setAgeBand] = useState<number>(6);
   const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const canUseOmni = user?.email === OMNI_ALLOWED_EMAIL;
 
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
@@ -55,9 +57,10 @@ function HomePage() {
       toast.error("Backend not configured. Set VITE_AGENT_API_URL.");
       return;
     }
+    const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
     try {
-      const { id } = await createEpisode({ topic: t, ageBand, generationMode });
+      const { id } = await createEpisode({ topic: t, ageBand, generationMode: effectiveMode });
       navigate({ to: "/episode/$id", params: { id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't start your cartoon.");
