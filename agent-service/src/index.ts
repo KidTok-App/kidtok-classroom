@@ -1,0 +1,135 @@
+/**
+ * KidTok Classroom agent service — bootstrap.
+ *
+ * Wires config → tracing → providers (real Google/Phoenix, or fakes when
+ * KIDTOK_FAKE_PROVIDERS=1) → ClassroomOrchestrator → Express API.
+ */
+
+import path from "node:path";
+import { GoogleAuth } from "google-auth-library";
+import { loadConfig } from "./config.js";
+import { initTracing } from "./tracing.js";
+import { createServer } from "./server.js";
+import { ClassroomOrchestrator } from "./orchestrator/ClassroomOrchestrator.js";
+import type { Providers, TextLlm } from "./clients/interfaces.js";
+import { VertexAuth, VertexGeminiImageGen, VertexRestTextLlm } from "./clients/gemini.js";
+import { GeminiVisualSafetyClassifier } from "./clients/imageSafety.js";
+import { FirestoreEpisodeStore, GcsAssetStorage, GoogleSpeechSynth } from "./clients/google.js";
+import { PhoenixMcpClient } from "./clients/phoenixMcp.js";
+import {
+  FakeImageGen,
+  FakePhoenixMcp,
+  FakeSpeechSynth,
+  FakeTextLlm,
+  FakeVisualSafety,
+  InMemoryEpisodeStore,
+  LocalDirStorage,
+} from "./clients/fakes.js";
+
+export interface BootResult {
+  cfg: ReturnType<typeof loadConfig>;
+  providers: Providers;
+  orchestrator: ClassroomOrchestrator;
+  app: ReturnType<typeof createServer>;
+  shutdown: () => Promise<void>;
+}
+
+export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootResult> {
+  const cfg = loadConfig(env);
+  const tracing = initTracing(cfg);
+
+  let providers: Providers;
+  let localAssetsDir: string | undefined;
+
+  if (cfg.fakeProviders) {
+    console.log("[boot] KIDTOK_FAKE_PROVIDERS=1 — running with in-process fakes (TEST-ONLY mode)");
+    localAssetsDir = path.resolve("local-assets");
+    if (!tracing.memoryExporter) throw new Error("fake mode requires the in-memory span exporter");
+    providers = {
+      textLlm: new FakeTextLlm(),
+      imageGen: new FakeImageGen(env.KIDTOK_FAKE_FAIL_IMAGE_CALL ? Number(env.KIDTOK_FAKE_FAIL_IMAGE_CALL) : null),
+      visualSafety: new FakeVisualSafety(),
+      tts: new FakeSpeechSynth(),
+      storage: new LocalDirStorage(localAssetsDir, `http://localhost:${cfg.port}/assets`),
+      store: new InMemoryEpisodeStore(),
+      phoenix: new FakePhoenixMcp(tracing.memoryExporter),
+      forceFlushTracing: tracing.forceFlush,
+    };
+  } else {
+    const vertexAuth = new VertexAuth();
+    const gateAuth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+
+    let textLlm: TextLlm;
+    if (cfg.orchestratorEngine === "adk") {
+      // PRIMARY: Google ADK agent definitions (see clients/adkLlm.ts).
+      const { AdkTextLlm } = await import("./clients/adkLlm.js");
+      textLlm = new AdkTextLlm(cfg.textModel);
+    } else {
+      // DOCUMENTED FALLBACK: plain Vertex REST pipeline.
+      textLlm = new VertexRestTextLlm(vertexAuth, cfg.projectId, cfg.region, cfg.textModel);
+    }
+    console.log(`[boot] orchestrator engine=${cfg.orchestratorEngine} textModel=${cfg.textModel} imageModel=${cfg.imageModel}`);
+
+    providers = {
+      textLlm,
+      imageGen: new VertexGeminiImageGen(vertexAuth, cfg.projectId, cfg.region, cfg.imageModel),
+      visualSafety: new GeminiVisualSafetyClassifier(
+        gateAuth,
+        cfg.projectId,
+        cfg.region,
+        cfg.textModel,
+        cfg.enableVisualSafety,
+      ),
+      tts: new GoogleSpeechSynth(),
+      storage: new GcsAssetStorage(cfg.projectId, cfg.gcsBucket),
+      store: new FirestoreEpisodeStore(cfg.projectId, cfg.firestoreCollection),
+      phoenix: new PhoenixMcpClient({
+        phoenixHost: cfg.phoenixHost,
+        phoenixApiKey: cfg.phoenixApiKey,
+        phoenixProject: cfg.phoenixProject,
+        commandOverride: cfg.phoenixMcpCommand,
+        promptModelName: cfg.textModel,
+      }),
+      forceFlushTracing: tracing.forceFlush,
+    };
+  }
+
+  const orchestrator = new ClassroomOrchestrator(providers, cfg, tracing.tracer);
+  const app = createServer({
+    cfg,
+    store: providers.store,
+    startEpisode: (doc) => orchestrator.startEpisode(doc),
+    localAssetsDir,
+  });
+
+  const shutdown = async (): Promise<void> => {
+    await providers.phoenix.close().catch(() => {});
+    await tracing.forceFlush().catch(() => {});
+    await tracing.shutdown().catch(() => {});
+  };
+
+  return { cfg, providers, orchestrator, app, shutdown };
+}
+
+// Only start listening when executed directly (the smoke test imports boot()).
+const isMain = process.argv[1] && import.meta.url.endsWith(path.basename(process.argv[1]));
+if (isMain) {
+  boot()
+    .then(({ cfg, app, shutdown }) => {
+      const server = app.listen(cfg.port, () => {
+        console.log(`[boot] kidtok-agent-service listening on :${cfg.port}`);
+      });
+      for (const signal of ["SIGINT", "SIGTERM"] as const) {
+        process.on(signal, () => {
+          console.log(`[boot] ${signal} — shutting down`);
+          server.close(() => {
+            void shutdown().finally(() => process.exit(0));
+          });
+        });
+      }
+    })
+    .catch((err) => {
+      console.error("[boot] fatal:", err);
+      process.exit(1);
+    });
+}
