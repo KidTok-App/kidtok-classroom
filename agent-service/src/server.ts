@@ -9,7 +9,7 @@
 
 import crypto from "node:crypto";
 import express, { type Express } from "express";
-import type { EpisodeStore } from "./clients/interfaces.js";
+import type { EpisodeStore, PhoenixMcp } from "./clients/interfaces.js";
 import type { ServiceConfig } from "./config.js";
 import { toPublicEpisode, type EpisodeDoc } from "./types.js";
 
@@ -17,6 +17,7 @@ export interface ServerDeps {
   cfg: ServiceConfig;
   store: EpisodeStore;
   startEpisode: (doc: EpisodeDoc) => void;
+  phoenix: PhoenixMcp;
   /** Set in fake-provider mode: serve uploaded assets from local disk. */
   localAssetsDir?: string;
 }
@@ -118,11 +119,14 @@ export function createServer(deps: ServerDeps): Express {
       const authHeader = req.headers.authorization;
       const caller = parseAuthToken(authHeader);
 
-      const body = (req.body ?? {}) as { topic?: unknown; ageBand?: unknown; generationMode?: unknown; userSteerage?: unknown };
+      const body = (req.body ?? {}) as { topic?: unknown; ageBand?: unknown; generationMode?: unknown; userSteerage?: unknown; childProfile?: unknown };
       const topic = typeof body.topic === "string" ? body.topic.trim() : "";
       const ageBand = Number(body.ageBand);
       const generationMode = body.generationMode === "video" ? "video" : "slides";
       const userSteerage = typeof body.userSteerage === "string" && body.userSteerage.trim() ? body.userSteerage.trim() : undefined;
+      const childProfile = body.childProfile && typeof body.childProfile === "object"
+        ? body.childProfile as { name: string; ageBand: number; interests: string; artStyle: string }
+        : undefined;
 
       if (!topic || topic.length > 300) {
         res.status(400).json({ error: "topic is required (non-empty string, max 300 chars)" });
@@ -142,6 +146,7 @@ export function createServer(deps: ServerDeps): Express {
         generationMode,
         ...(userSteerage ? { userSteerage } : {}),
         ...(caller ? { ownerId: caller.id } : {}),
+        ...(childProfile ? { childProfile } : {}),
       };
       await deps.store.create(doc);
       deps.startEpisode(doc); // pipeline runs async in-process
@@ -149,6 +154,16 @@ export function createServer(deps: ServerDeps): Express {
     } catch (err) {
       console.error("[api] POST /episodes failed:", err);
       res.status(500).json({ error: "failed to create episode" });
+    }
+  });
+
+  app.get("/prompts/history", async (req, res) => {
+    try {
+      const history = await deps.phoenix.getPromptHistory("kidtok-scene-prompt");
+      res.json(history);
+    } catch (err) {
+      console.error("[api] GET /prompts/history failed:", err);
+      res.status(500).json({ error: "failed to load prompt history" });
     }
   });
 

@@ -9,14 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SelfImprovementRouteImport } from './routes/self-improvement'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EpisodeIdRouteImport } from './routes/episode.$id'
 import { Route as ApiAgentEpisodesRouteImport } from './routes/api/agent/episodes'
 import { Route as ApiAgentConfigRouteImport } from './routes/api/agent/config'
+import { Route as ApiAgentPromptsHistoryRouteImport } from './routes/api/agent/prompts/history'
 import { Route as ApiAgentEpisodesIdRouteImport } from './routes/api/agent/episodes.$id'
 
+const SelfImprovementRoute = SelfImprovementRouteImport.update({
+  id: '/self-improvement',
+  path: '/self-improvement',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -47,6 +54,11 @@ const ApiAgentConfigRoute = ApiAgentConfigRouteImport.update({
   path: '/api/agent/config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentPromptsHistoryRoute = ApiAgentPromptsHistoryRouteImport.update({
+  id: '/api/agent/prompts/history',
+  path: '/api/agent/prompts/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentEpisodesIdRoute = ApiAgentEpisodesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -57,29 +69,35 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
+  '/self-improvement': typeof SelfImprovementRoute
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
+  '/api/agent/prompts/history': typeof ApiAgentPromptsHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
+  '/self-improvement': typeof SelfImprovementRoute
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
+  '/api/agent/prompts/history': typeof ApiAgentPromptsHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
+  '/self-improvement': typeof SelfImprovementRoute
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
+  '/api/agent/prompts/history': typeof ApiAgentPromptsHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,41 +105,56 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/library'
+    | '/self-improvement'
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
     | '/api/agent/episodes/$id'
+    | '/api/agent/prompts/history'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/library'
+    | '/self-improvement'
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
     | '/api/agent/episodes/$id'
+    | '/api/agent/prompts/history'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/library'
+    | '/self-improvement'
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
     | '/api/agent/episodes/$id'
+    | '/api/agent/prompts/history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   LibraryRoute: typeof LibraryRoute
+  SelfImprovementRoute: typeof SelfImprovementRoute
   EpisodeIdRoute: typeof EpisodeIdRoute
   ApiAgentConfigRoute: typeof ApiAgentConfigRoute
   ApiAgentEpisodesRoute: typeof ApiAgentEpisodesRouteWithChildren
+  ApiAgentPromptsHistoryRoute: typeof ApiAgentPromptsHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/self-improvement': {
+      id: '/self-improvement'
+      path: '/self-improvement'
+      fullPath: '/self-improvement'
+      preLoaderRoute: typeof SelfImprovementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
@@ -164,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent/prompts/history': {
+      id: '/api/agent/prompts/history'
+      path: '/api/agent/prompts/history'
+      fullPath: '/api/agent/prompts/history'
+      preLoaderRoute: typeof ApiAgentPromptsHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/agent/episodes/$id': {
       id: '/api/agent/episodes/$id'
       path: '/$id'
@@ -189,9 +229,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   LibraryRoute: LibraryRoute,
+  SelfImprovementRoute: SelfImprovementRoute,
   EpisodeIdRoute: EpisodeIdRoute,
   ApiAgentConfigRoute: ApiAgentConfigRoute,
   ApiAgentEpisodesRoute: ApiAgentEpisodesRouteWithChildren,
+  ApiAgentPromptsHistoryRoute: ApiAgentPromptsHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

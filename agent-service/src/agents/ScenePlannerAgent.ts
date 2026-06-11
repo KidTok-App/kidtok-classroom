@@ -1,17 +1,3 @@
-/**
- * ScenePlannerAgent — one visual description per scene, rendered through the
- * Phoenix-managed scene-prompt template.
- *
- * BEFORE planning it fetches the latest "kidtok-scene-prompt" template from
- * Phoenix prompt management via MCP (get-latest-prompt); if none exists it
- * seeds it from the legacy template via upsert-prompt. QualityReviewerAgent
- * publishes improved versions, which this agent picks up on the NEXT episode.
- *
- * Prompt construction uses the legacy builders: applyScaffold +
- * assertNoUnresolvedTokens (scaffoldTemplating) and the age visual specs
- * (dynamicPromptContext port).
- */
-
 import { ageLabel, getAgeSpec } from "../legacy/ageSpecs.js";
 import {
   applyScaffold,
@@ -24,7 +10,7 @@ import {
   SCENE_PROMPT_DESCRIPTION,
 } from "../legacy/scenePromptTemplate.js";
 import type { PhoenixMcp, TextLlm } from "../clients/interfaces.js";
-import type { EpisodeScript, PlannedScene } from "../types.js";
+import type { EpisodeScript, PlannedScene, ChildProfile } from "../types.js";
 
 const PLANNER_RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -48,7 +34,7 @@ Given a 5-scene episode script, write ONE visual description per scene for the i
 CONSISTENCY RULES (MUST FOLLOW):
 - Invent ONE friendly recurring cartoon mascot guide (an animal or whimsical creature — never a realistic human) and feature it consistently across all 5 scenes doing topic-appropriate things
 - Keep the same world, lighting mood, and color family across all scenes so the episode feels continuous
-- Style anchor for every scene: ${GLOBAL_CARTOON_STYLE}
+- Style anchor for every scene: {STYLE_ANCHOR}
 
 DESCRIPTION RULES:
 - Concrete and drawable: subject, action, setting, 1-2 supporting props
@@ -78,6 +64,7 @@ export class ScenePlannerAgent {
     topic: string;
     ageBand: number;
     script: EpisodeScript;
+    childProfile?: ChildProfile;
   }): Promise<ScenePlanResult> {
     // 1. Fetch the live template from Phoenix prompt management (MCP).
     let promptSeeded = false;
@@ -104,16 +91,19 @@ export class ScenePlannerAgent {
       `Episode title: ${input.script.title}`,
       "",
       ...input.script.scenes.map(
-        (s, i) =>
-          `Scene ${i + 1}:\n  Caption: ${s.caption}\n  Narration: ${s.narrationText}\n  Learning point: ${s.learningPoint}`,
+          (s, i) =>
+            `Scene ${i + 1}:\n  Caption: ${s.caption}\n  Narration: ${s.narrationText}\n  Learning point: ${s.learningPoint}`,
       ),
       "",
       "Write the 5 visual descriptions now (one per scene, in order).",
     ].join("\n");
 
+    const styleAnchor = input.childProfile?.artStyle || GLOBAL_CARTOON_STYLE;
+    const systemPrompt = PLANNER_SYSTEM_PROMPT.replace("{STYLE_ANCHOR}", styleAnchor);
+
     const { descriptions } = await this.llm.generateJson<{ descriptions: string[] }>({
       spanName: "scene-planner",
-      system: PLANNER_SYSTEM_PROMPT,
+      system: systemPrompt,
       user,
       schema: PLANNER_RESPONSE_SCHEMA,
       temperature: 0.6,
@@ -133,7 +123,7 @@ export class ScenePlannerAgent {
         visual_description: visualDescription.trim().replace(/\.$/, ""),
         topic: input.topic,
         age_label: ageLabel(input.ageBand),
-        age_visual_style: spec.visualStyle,
+        age_visual_style: input.childProfile?.artStyle || spec.visualStyle,
       });
       assertNoUnresolvedTokens(rendered, "scene-image-prompt");
       return rendered;

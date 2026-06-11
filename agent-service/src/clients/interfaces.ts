@@ -83,6 +83,13 @@ export interface PromptVersion {
   versionId: string | null;
 }
 
+export interface PromptHistoryItem {
+  versionId: string;
+  template: string;
+  changeSummary: string;
+  createdAt: string;
+}
+
 /**
  * Phoenix MCP surface used at runtime:
  *   - ScenePlannerAgent: getLatestPrompt / upsertPrompt (seed)
@@ -94,7 +101,9 @@ export interface PhoenixMcp {
     name: string;
     description: string;
     template: string;
+    changeSummary?: string;
   }): Promise<PromptVersion>;
+  getPromptHistory(name: string): Promise<PromptHistoryItem[]>;
   getEpisodeSpans(episodeId: string, opts?: { limit?: number }): Promise<SpanSummary[]>;
   close(): Promise<void>;
 }

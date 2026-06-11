@@ -105,6 +105,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
     cfg,
     store: providers.store,
     startEpisode: (doc) => orchestrator.startEpisode(doc),
+    phoenix: providers.phoenix,
     localAssetsDir,
   });
 

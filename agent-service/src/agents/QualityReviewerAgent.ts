@@ -19,7 +19,7 @@
 import { applyScaffold, assertNoUnresolvedTokens } from "../legacy/scaffoldTemplating.js";
 import { SCENE_PROMPT_DESCRIPTION } from "../legacy/scenePromptTemplate.js";
 import type { EpisodeStore, PhoenixMcp, TextLlm } from "../clients/interfaces.js";
-import type { EpisodeReview, EpisodeScript, SceneAsset, SpanSummary } from "../types.js";
+import type { EpisodeReview, EpisodeScript, SceneAsset, SpanSummary, ChildProfile } from "../types.js";
 
 const ALIGNMENT_SCHEMA = {
   type: "OBJECT",
@@ -80,6 +80,7 @@ export class QualityReviewerAgent {
     templateFellBack: boolean;
     safetyVerdict: string;
     userSteerage?: string;
+    childProfile?: ChildProfile;
   }): Promise<EpisodeReview> {
     // --- 1. Pull THIS episode's spans back out of Phoenix via MCP ---------
     await this.forceFlushTracing().catch(() => {});
@@ -93,10 +94,15 @@ export class QualityReviewerAgent {
     let alignmentScore = 8;
     let alignmentNotes = "Alignment check unavailable.";
     try {
+      let system = "You are a children's-content quality reviewer. Score how well each scene's on-screen caption matches its narration and learning point. 10 = every caption is a faithful, kid-readable headline of its narration.";
+      if (input.childProfile) {
+        system += ` Additionally, evaluate how successfully the episode personalization aligned with the child's profile. Child Name: ${input.childProfile.name}, Age: ${input.childProfile.ageBand}, Interests: ${input.childProfile.interests}.
+Your notes MUST include a dedicated sentence assessment of child personalization alignment (e.g. "Personalization alignment: Excellent, the narrator addresses Zosia directly and explains the volcanoes using fun dinosaur analogies!").`;
+      }
+
       const res = await this.llm.generateJson<{ alignmentScore: number; notes: string }>({
         spanName: "review-alignment",
-        system:
-          "You are a children's-content quality reviewer. Score how well each scene's on-screen caption matches its narration and learning point. 10 = every caption is a faithful, kid-readable headline of its narration.",
+        system,
         user: input.script.scenes
           .map(
             (s, i) =>
@@ -171,8 +177,9 @@ export class QualityReviewerAgent {
     const weaknessFound =
       degradedScenes > 0 || input.imageRetries > 0 || alignmentScore < 8 || input.templateFellBack || !!input.userSteerage;
     let promptImproved = false;
+    let finalNotes = notes.join(" ");
     if (weaknessFound) {
-      promptImproved = await this.improveScenePrompt(
+      const improveRes = await this.improveScenePrompt(
         {
           episodeId: input.episodeId,
           templateUsed: input.templateUsed,
@@ -185,17 +192,17 @@ export class QualityReviewerAgent {
           notes,
         }
       );
+      promptImproved = improveRes.success;
       if (promptImproved) {
-        notes.push(
-          `Prompt mgmt: published an improved "${this.scenePromptName}" version for the next episode (was version=${input.promptVersionUsed ?? "seed"}).`,
-        );
+        const publishedNote = `Prompt mgmt: published an improved "${this.scenePromptName}" version for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
+        finalNotes += " " + publishedNote;
       }
     }
 
     // --- 5. Persist review + status ready ----------------------------------
     const review: EpisodeReview = {
       score,
-      notes: notes.join(" "),
+      notes: finalNotes,
       promptImproved,
       promptVersionUsed: input.promptVersionUsed,
       spanCount: spans.length,
@@ -227,8 +234,9 @@ export class QualityReviewerAgent {
   private async improveScenePrompt(
     input: { episodeId: string; templateUsed: string; userSteerage?: string },
     weakness: { degradedScenes: number; imageRetries: number; alignmentScore: number; notes: string[] },
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; changeSummary?: string }> {
     let improvedTemplate: string | null = null;
+    let changeSummary = "Optimized prompt template via closed-loop quality telemetry.";
     try {
       const userPromptParts = [
         "CURRENT TEMPLATE:",
@@ -263,8 +271,11 @@ export class QualityReviewerAgent {
         safetyMode: "analysis",
       });
       improvedTemplate = res.improvedTemplate?.trim() || null;
+      if (res.changeSummary) {
+        changeSummary = res.changeSummary.trim();
+      }
       if (improvedTemplate) {
-        console.log(`[QualityReviewerAgent] template improvement: ${res.changeSummary}`);
+        console.log(`[QualityReviewerAgent] template improvement: ${changeSummary}`);
       }
     } catch (err) {
       console.warn(
@@ -282,15 +293,16 @@ export class QualityReviewerAgent {
       improvedTemplate = input.templateUsed.includes(clause.trim())
         ? null
         : `${input.templateUsed}${clause}`;
+      changeSummary = "Added targeted composition guidance for simplified background rendering.";
     }
-    if (!improvedTemplate || improvedTemplate === input.templateUsed) return false;
+    if (!improvedTemplate || improvedTemplate === input.templateUsed) return { success: false };
 
     // Validate the template before publishing: all required tokens present
     // and nothing unresolved after a dummy render.
     for (const token of ["{visual_description}", "{topic}", "{age_label}", "{age_visual_style}"]) {
       if (!improvedTemplate.includes(token)) {
         console.warn(`[QualityReviewerAgent] improved template dropped ${token}; not publishing`);
-        return false;
+        return { success: false };
       }
     }
     try {
@@ -303,18 +315,19 @@ export class QualityReviewerAgent {
       assertNoUnresolvedTokens(rendered, "improved-scene-prompt-validation");
     } catch (err) {
       console.warn(`[QualityReviewerAgent] improved template failed validation: ${err instanceof Error ? err.message : err}`);
-      return false;
+      return { success: false };
     }
 
     const version = await this.phoenix.upsertPrompt({
       name: this.scenePromptName,
       description: SCENE_PROMPT_DESCRIPTION,
       template: improvedTemplate,
+      changeSummary,
     });
     console.log(
       `[QualityReviewerAgent] upserted "${this.scenePromptName}" via Phoenix MCP (new version=${version.versionId ?? "unknown"})`,
     );
-    return true;
+    return { success: true, changeSummary };
   }
 }
 

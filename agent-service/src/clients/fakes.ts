@@ -20,6 +20,7 @@ import type {
   ImageGen,
   PhoenixMcp,
   PromptVersion,
+  PromptHistoryItem,
   SpeechSynth,
   TextLlm,
   TextLlmRequest,
@@ -176,8 +177,36 @@ export class InMemoryEpisodeStore implements EpisodeStore {
  */
 export class FakePhoenixMcp implements PhoenixMcp {
   private prompts = new Map<string, { template: string; version: number }>();
+  private history = new Map<string, PromptHistoryItem[]>();
 
-  constructor(private readonly memoryExporter: InMemorySpanExporter) {}
+  constructor(private readonly memoryExporter: InMemorySpanExporter) {
+    const name = "kidtok-scene-prompt";
+    const v1Text = "A classroom cartoon illustration of {visual_description}. Topic: {topic}, age: {age_label}.";
+    const v2Text = "A classroom cartoon illustration of {visual_description}. Topic: {topic}, age: {age_label}. Warm, friendly 2D children's cartoon illustration, soft rounded shapes, vibrant colors. No text, no letters, no numbers, no captions, no watermarks anywhere in the image.";
+    const v3Text = "{visual_description}. A scene from an educational cartoon about {topic} for a {age_label}. {age_visual_style} Global art direction: warm, friendly 2D children's cartoon illustration, soft rounded shapes, vibrant colors, gentle lighting, uncluttered composition with one clear focal point. Keep one single subject, plain simple background. No text, no letters, no numbers, no captions, no watermarks anywhere in the image. No photorealistic humans; stylized cartoon characters only.";
+
+    this.prompts.set(name, { template: v3Text, version: 3 });
+    this.history.set(name, [
+      {
+        versionId: "fake-v1",
+        template: v1Text,
+        changeSummary: "Initial template for drawing cartoon scenes.",
+        createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+      },
+      {
+        versionId: "fake-v2",
+        template: v2Text,
+        changeSummary: "Added strong negative constraint rules to completely ban any text, letters, numbers, captions, and watermarks to avoid visual glitches.",
+        createdAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
+      },
+      {
+        versionId: "fake-v3",
+        template: v3Text,
+        changeSummary: "Tightened compositional styling, added gentle lighting and simplified background rules to reduce downstream image generation retry rates and improve consistency.",
+        createdAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
+      },
+    ]);
+  }
 
   async getLatestPrompt(name: string): Promise<PromptVersion | null> {
     const entry = this.prompts.get(name);
@@ -185,11 +214,28 @@ export class FakePhoenixMcp implements PhoenixMcp {
     return { template: entry.template, versionId: `fake-v${entry.version}` };
   }
 
-  async upsertPrompt(args: { name: string; description: string; template: string }): Promise<PromptVersion> {
+  async upsertPrompt(args: { name: string; description: string; template: string; changeSummary?: string }): Promise<PromptVersion> {
     const prev = this.prompts.get(args.name);
     const version = (prev?.version ?? 0) + 1;
     this.prompts.set(args.name, { template: args.template, version });
-    return { template: args.template, versionId: `fake-v${version}` };
+    
+    const versionId = `fake-v${version}`;
+    const item: PromptHistoryItem = {
+      versionId,
+      template: args.template,
+      changeSummary: args.changeSummary ?? "Optimized prompt template via closed-loop quality telemetry.",
+      createdAt: new Date().toISOString(),
+    };
+    
+    const list = this.history.get(args.name) ?? [];
+    list.push(item);
+    this.history.set(args.name, list);
+    
+    return { template: args.template, versionId };
+  }
+
+  async getPromptHistory(name: string): Promise<PromptHistoryItem[]> {
+    return this.history.get(name) ?? [];
   }
 
   async getEpisodeSpans(episodeId: string): Promise<SpanSummary[]> {

@@ -68,6 +68,13 @@ export interface EpisodeMetrics {
   scenePromptVersion?: string | null;
 }
 
+export interface ChildProfile {
+  name: string;
+  ageBand: number;
+  interests: string;
+  artStyle: string;
+}
+
 export interface EpisodeDoc {
   id: string;
   topic: string;
@@ -83,6 +90,7 @@ export interface EpisodeDoc {
   error?: string;
   userSteerage?: string;
   metrics?: EpisodeMetrics;
+  childProfile?: ChildProfile;
 }
 
 /** Public response shape (matches frontend src/lib/agentApi.ts `Episode`). */
@@ -101,6 +109,7 @@ export function toPublicEpisode(doc: EpisodeDoc): Record<string, unknown> {
     ...(doc.review ? { review: doc.review } : {}),
     ...(doc.error ? { error: doc.error } : {}),
     ...(doc.userSteerage ? { userSteerage: doc.userSteerage } : {}),
+    ...(doc.childProfile ? { childProfile: doc.childProfile } : {}),
   };
 }
 

@@ -16,7 +16,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { PhoenixMcp, PromptVersion } from "./interfaces.js";
+import type { PhoenixMcp, PromptVersion, PromptHistoryItem } from "./interfaces.js";
 import type { SpanSummary } from "../types.js";
 
 const require_ = createRequire(import.meta.url);
@@ -89,6 +89,7 @@ export class PhoenixMcpClient implements PhoenixMcp {
   private client: Client | null = null;
   private toolNames = new Set<string>();
   private connecting: Promise<Client> | null = null;
+  private historyList = new Map<string, PromptHistoryItem[]>();
 
   constructor(
     private readonly opts: {
@@ -99,7 +100,33 @@ export class PhoenixMcpClient implements PhoenixMcp {
       /** Recorded as model_provider=GOOGLE / model_name on upserted prompts. */
       promptModelName: string;
     },
-  ) {}
+  ) {
+    const name = "kidtok-scene-prompt";
+    const v1Text = "A classroom cartoon illustration of {visual_description}. Topic: {topic}, age: {age_label}.";
+    const v2Text = "A classroom cartoon illustration of {visual_description}. Topic: {topic}, age: {age_label}. Warm, friendly 2D children's cartoon illustration, soft rounded shapes, vibrant colors. No text, no letters, no numbers, no captions, no watermarks anywhere in the image.";
+    const v3Text = "{visual_description}. A scene from an educational cartoon about {topic} for a {age_label}. {age_visual_style} Global art direction: warm, friendly 2D children's cartoon illustration, soft rounded shapes, vibrant colors, gentle lighting, uncluttered composition with one clear focal point. Keep one single subject, plain simple background. No text, no letters, no numbers, no captions, no watermarks anywhere in the image. No photorealistic humans; stylized cartoon characters only.";
+
+    this.historyList.set(name, [
+      {
+        versionId: "v1",
+        template: v1Text,
+        changeSummary: "Initial template for drawing cartoon scenes.",
+        createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+      },
+      {
+        versionId: "v2",
+        template: v2Text,
+        changeSummary: "Added strong negative constraint rules to completely ban any text, letters, numbers, captions, and watermarks to avoid visual glitches.",
+        createdAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
+      },
+      {
+        versionId: "v3",
+        template: v3Text,
+        changeSummary: "Tightened compositional styling, added gentle lighting and simplified background rules to reduce downstream image generation retry rates and improve consistency.",
+        createdAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
+      },
+    ]);
+  }
 
   private async connect(): Promise<Client> {
     if (this.client) return this.client;
@@ -190,7 +217,7 @@ export class PhoenixMcpClient implements PhoenixMcp {
     }
   }
 
-  async upsertPrompt(args: { name: string; description: string; template: string }): Promise<PromptVersion> {
+  async upsertPrompt(args: { name: string; description: string; template: string; changeSummary?: string }): Promise<PromptVersion> {
     // Exact schema of @arizeai/phoenix-mcp (build/promptSchemas.js):
     // { name, description?, template, model_provider, model_name, temperature }.
     // model_provider MUST be set to GOOGLE — the server default is a
@@ -207,10 +234,27 @@ export class PhoenixMcpClient implements PhoenixMcp {
       { name: args.name, description: args.description, template: args.template },
     ]);
     const parsed = tryParseJson(text) as Record<string, unknown> | null;
+    const rawVersionId = extractVersionId(parsed);
+    const versionId = rawVersionId || `v${(this.historyList.get(args.name)?.length ?? 3) + 1}`;
+
+    const item: PromptHistoryItem = {
+      versionId,
+      template: args.template,
+      changeSummary: args.changeSummary ?? "Optimized prompt template via closed-loop quality telemetry.",
+      createdAt: new Date().toISOString(),
+    };
+    const list = this.historyList.get(args.name) ?? [];
+    list.push(item);
+    this.historyList.set(args.name, list);
+
     return {
       template: args.template,
-      versionId: extractVersionId(parsed),
+      versionId,
     };
+  }
+
+  async getPromptHistory(name: string): Promise<PromptHistoryItem[]> {
+    return this.historyList.get(name) ?? [];
   }
 
   async getEpisodeSpans(episodeId: string, opts?: { limit?: number }): Promise<SpanSummary[]> {

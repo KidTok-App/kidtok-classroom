@@ -30,6 +30,20 @@ export interface Scene {
   animation: SceneAnimation;
 }
 
+export interface ChildProfile {
+  name: string;
+  ageBand: number;
+  interests: string;
+  artStyle: string;
+}
+
+export interface PromptHistoryItem {
+  versionId: string;
+  template: string;
+  changeSummary: string;
+  createdAt: string;
+}
+
 export interface Episode {
   id: string;
   topic: string;
@@ -41,6 +55,7 @@ export interface Episode {
   scenes?: Scene[];
   error?: string;
   userSteerage?: string;
+  childProfile?: ChildProfile;
   review?: {
     score: number;
     notes: string;
@@ -78,6 +93,7 @@ export async function createEpisode(input: {
   ageBand: number;
   generationMode?: "slides" | "video";
   userSteerage?: string;
+  childProfile?: ChildProfile;
 }): Promise<{ id: string }> {
   const res = await fetch(`${BASE}/episodes`, {
     method: "POST",
@@ -86,6 +102,13 @@ export async function createEpisode(input: {
       ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
+  });
+  return handle(res);
+}
+
+export async function getPromptHistory(): Promise<PromptHistoryItem[]> {
+  const res = await fetch(`${BASE}/prompts/history`, {
+    headers: getAuthHeaders(),
   });
   return handle(res);
 }

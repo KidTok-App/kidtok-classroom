@@ -93,7 +93,12 @@ export class ClassroomOrchestrator {
           if (doc.generationMode === "video") {
             // ---- 1. ScriptAgent (status: scripting — set at creation) -------
             const scriptOut = await this.stage(doc.id, "ScriptAgent", stageDurationsMs, () =>
-              this.scriptAgent.run({ episodeId: doc.id, topic: doc.topic, ageBand: doc.ageBand }),
+              this.scriptAgent.run({
+                episodeId: doc.id,
+                topic: doc.topic,
+                ageBand: doc.ageBand,
+                childProfile: doc.childProfile,
+              }),
             );
 
             // ---- 2. ScenePlannerAgent --------------------------------------
@@ -104,6 +109,7 @@ export class ClassroomOrchestrator {
                 topic: doc.topic,
                 ageBand: doc.ageBand,
                 script: scriptOut.script,
+                childProfile: doc.childProfile,
               }),
             );
 
@@ -179,6 +185,7 @@ Ensure you explicitly describe:
                 templateFellBack: planOut.templateFellBack,
                 safetyVerdict: scriptOut.safetyVerdict,
                 userSteerage: doc.userSteerage,
+                childProfile: doc.childProfile,
               }),
             );
 
@@ -190,7 +197,12 @@ Ensure you explicitly describe:
 
           // ---- 1. ScriptAgent (status: scripting — set at creation) -------
           const scriptOut = await this.stage(doc.id, "ScriptAgent", stageDurationsMs, () =>
-            this.scriptAgent.run({ episodeId: doc.id, topic: doc.topic, ageBand: doc.ageBand }),
+            this.scriptAgent.run({
+              episodeId: doc.id,
+              topic: doc.topic,
+              ageBand: doc.ageBand,
+              childProfile: doc.childProfile,
+            }),
           );
 
           // ---- 2. ScenePlannerAgent --------------------------------------
@@ -201,6 +213,7 @@ Ensure you explicitly describe:
               topic: doc.topic,
               ageBand: doc.ageBand,
               script: scriptOut.script,
+              childProfile: doc.childProfile,
             }),
           );
 
@@ -254,6 +267,7 @@ Ensure you explicitly describe:
               templateFellBack: planOut.templateFellBack,
               safetyVerdict: scriptOut.safetyVerdict,
               userSteerage: doc.userSteerage,
+              childProfile: doc.childProfile,
             }),
           );
 

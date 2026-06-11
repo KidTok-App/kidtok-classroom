@@ -112,6 +112,13 @@ export function AppHeader() {
                     <div className="px-3 py-2 text-[11px] font-bold text-muted-foreground border-b border-border/40">
                       Logged in as <span className="font-extrabold text-foreground block truncate">{user.name}</span>
                     </div>
+                    <Link
+                      to="/self-improvement"
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full text-left px-3 py-2.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl transition flex items-center gap-2 cursor-pointer mt-1"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary animate-pulse" /> AI Self‑Improvement
+                    </Link>
                     <button
                       onClick={() => {
                         signOut();

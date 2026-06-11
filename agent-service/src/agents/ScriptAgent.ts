@@ -11,7 +11,7 @@
 import { buildAgeSectionForPrompt, getAgeSpec } from "../legacy/ageSpecs.js";
 import { runSafetyCheck } from "../legacy/safetyCheck.js";
 import type { TextLlm } from "../clients/interfaces.js";
-import type { EpisodeScript, ScriptScene } from "../types.js";
+import type { EpisodeScript, ScriptScene, ChildProfile } from "../types.js";
 
 export class ScriptSafetyError extends Error {
   constructor(
@@ -67,9 +67,9 @@ export function sanitizeScriptText(text: string): string {
   return sanitized.replace(/\s{2,}/g, " ").trim();
 }
 
-function buildSystemPrompt(ageBand: number): string {
+function buildSystemPrompt(ageBand: number, childProfile?: ChildProfile): string {
   const spec = getAgeSpec(ageBand);
-  return `You are an expert educational content creator for young children aged ${spec.age}.
+  let basePrompt = `You are an expert educational content creator for young children aged ${spec.age}.
 Create an engaging, age-appropriate 5-scene mini cartoon episode that is fun and easy to understand.
 
 ${buildAgeSectionForPrompt(spec)}
@@ -91,13 +91,22 @@ CRITICAL LANGUAGE REQUIREMENTS:
 CRITICAL PLACEHOLDER RULES:
 - NEVER output placeholder tokens like "[Child's Name]", "[child name]", "[kid's name]" or any similar square-bracket placeholders
 - NEVER use "your child" in the kid-facing script
-- Speak directly to the child using "you"; generic friendly terms like "buddy" or "friend" are okay if used sparingly
+- Speak directly to the child using "you"; generic friendly terms like "buddy" or "friend" are okay if used sparingly`;
 
-STRUCTURE REQUIREMENTS:
+  if (childProfile) {
+    basePrompt += `\n\n🧒 CHILD PERSONALIZATION RULES:
+- The learner is a real child named "${childProfile.name}" who is ${childProfile.ageBand} years old.
+- Address them directly by their name "${childProfile.name}" at least twice in the narration (e.g. in the first scene's hook and the final scene's joyful recap).
+- Connect the explanation of the topic to the child's interests: "${childProfile.interests}"! Specifically, weave these interests "${childProfile.interests}" into the analogies, examples, or storyline of the episode. For example, if the topic is volcanoes and the child loves dinosaurs, explain volcanoes using dinosaurs exploring near them or comparing lava flow to dinosaur-related things. Ensure the core learning topic remains the primary focus.`;
+  }
+
+  basePrompt += `\n\nSTRUCTURE REQUIREMENTS:
 - Exactly 5 scenes telling one continuous story: hook → discover → explain → example → joyful recap
 - caption: a short on-screen caption (max 10 words, no emoji)
 - narrationText: 2-4 spoken sentences following the sentence-length ceiling above
 - learningPoint: the single idea the child takes away from the scene`;
+
+  return basePrompt;
 }
 
 export class ScriptAgent {
@@ -107,8 +116,9 @@ export class ScriptAgent {
     episodeId: string;
     topic: string;
     ageBand: number;
+    childProfile?: ChildProfile;
   }): Promise<{ script: EpisodeScript; safetyVerdict: string; safetyReasons: string[] }> {
-    const system = buildSystemPrompt(input.ageBand);
+    const system = buildSystemPrompt(input.ageBand, input.childProfile);
     const user = `Topic: "${input.topic}"\n\nWrite the 5-scene episode script now.`;
 
     let script: EpisodeScript | null = null;

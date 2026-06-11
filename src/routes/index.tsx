@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation } from "lucide-react";
+import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
 import { useAuth } from "@/lib/auth";
@@ -38,19 +38,141 @@ const SAMPLE_TOPICS = [
   { label: "Plants", emoji: "🌱", prompt: "How a tiny seed grows into a tall plant" },
 ];
 
+interface ChildProfile {
+  name: string;
+  ageBand: number;
+  interests: string;
+  artStyle: string;
+}
+
+const DEFAULT_PROFILES: ChildProfile[] = [
+  {
+    name: "Zosia",
+    ageBand: 5,
+    interests: "dinosaurs, volcanoes, and cookies",
+    artStyle: "crayon sketch"
+  }
+];
+
 function HomePage() {
   const navigate = useNavigate();
   const [topic, setTopic] = useState("");
   const [ageBand, setAgeBand] = useState<number>(6);
   const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
-  const [userSteerage, setUserSteerage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
+
+  // Child Profiles State
+  const [childProfiles, setChildProfiles] = useState<ChildProfile[]>([]);
+  const [selectedChildIdx, setSelectedChildIdx] = useState<number | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newAge, setNewAge] = useState<number>(5);
+  const [newInterests, setNewInterests] = useState("");
+  const [newArtStyle, setNewArtStyle] = useState("crayon sketch");
   
   const isLocal = typeof window !== "undefined" && 
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const isMockUser = user?.email?.endsWith("@kidtokai.com") || user?.email?.endsWith("@kidtok.co");
   const canUseOmni = user?.email === OMNI_ALLOWED_EMAIL || isLocal || isMockUser;
+
+  // Load Child Profiles on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("kidtok_child_profiles");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setChildProfiles(parsed);
+            
+            const lastSelected = localStorage.getItem("kidtok_last_child_profile");
+            const idx = parsed.findIndex((p: any) => p.name === lastSelected);
+            if (idx !== -1) {
+              setSelectedChildIdx(idx);
+              setAgeBand(parsed[idx].ageBand);
+            } else {
+              setSelectedChildIdx(0);
+              setAgeBand(parsed[0].ageBand);
+            }
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse child profiles", e);
+        }
+      }
+      // Seeding Default Profile
+      setChildProfiles(DEFAULT_PROFILES);
+      setSelectedChildIdx(0);
+      setAgeBand(DEFAULT_PROFILES[0].ageBand);
+    }
+  }, []);
+
+  const saveProfilesToStorage = (profiles: ChildProfile[]) => {
+    setChildProfiles(profiles);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kidtok_child_profiles", JSON.stringify(profiles));
+    }
+  };
+
+  const selectChild = (idx: number) => {
+    setSelectedChildIdx(idx);
+    const child = childProfiles[idx];
+    if (child) {
+      setAgeBand(child.ageBand);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("kidtok_last_child_profile", child.name);
+      }
+    }
+  };
+
+  const handleAddChild = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) {
+      toast.error("Please enter a name!");
+      return;
+    }
+    const isDup = childProfiles.some(p => p.name.toLowerCase() === newName.trim().toLowerCase());
+    if (isDup) {
+      toast.error("A child profile with this name already exists!");
+      return;
+    }
+    const newProfile: ChildProfile = {
+      name: newName.trim(),
+      ageBand: newAge,
+      interests: newInterests.trim() || "anything fun",
+      artStyle: newArtStyle
+    };
+    const updated = [...childProfiles, newProfile];
+    saveProfilesToStorage(updated);
+    setSelectedChildIdx(updated.length - 1);
+    setAgeBand(newAge);
+    
+    // Reset Form
+    setNewName("");
+    setNewAge(5);
+    setNewInterests("");
+    setNewArtStyle("crayon sketch");
+    setShowAddForm(false);
+    toast.success(`${newProfile.name}'s profile added!`);
+  };
+
+  const handleDeleteChild = (idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const childName = childProfiles[idx]?.name;
+    const updated = childProfiles.filter((_, i) => i !== idx);
+    
+    if (updated.length === 0) {
+      saveProfilesToStorage(DEFAULT_PROFILES);
+      setSelectedChildIdx(0);
+      setAgeBand(DEFAULT_PROFILES[0].ageBand);
+    } else {
+      saveProfilesToStorage(updated);
+      setSelectedChildIdx(0);
+      setAgeBand(updated[0].ageBand);
+    }
+    toast.success(`Removed ${childName}'s profile.`);
+  };
 
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
@@ -64,12 +186,22 @@ function HomePage() {
     }
     const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
+
+    // Retrieve active steering constraints from local storage (set on Self-Improvement page)
+    let storedSteerage = "";
+    if (typeof window !== "undefined") {
+      storedSteerage = localStorage.getItem("kidtok_user_steerage") || "";
+    }
+
+    const childProfile = selectedChildIdx !== null ? childProfiles[selectedChildIdx] : undefined;
+
     try {
       const { id } = await createEpisode({ 
         topic: t, 
         ageBand, 
         generationMode: effectiveMode,
-        userSteerage: canUseOmni ? userSteerage : undefined
+        userSteerage: canUseOmni ? (storedSteerage || undefined) : undefined,
+        childProfile
       });
       navigate({ to: "/episode/$id", params: { id } });
     } catch (err) {
@@ -104,6 +236,142 @@ function HomePage() {
           Type any topic. Our AI agents write, draw, and narrate an animated cartoon for your
           classroom in minutes.
         </p>
+
+        {/* Child Profile Carousel Section */}
+        <div className="max-w-2xl mx-auto mb-8 space-y-4 text-left">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Baby className="h-4.5 w-4.5 text-primary" /> Personalized Child Profiles
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="text-xs font-extrabold text-primary hover:text-primary/80 flex items-center gap-1 transition"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Child Profile
+            </button>
+          </div>
+
+          {showAddForm ? (
+            <div className="bg-card border-2 border-primary/20 rounded-3xl p-5 space-y-4 shadow-medium animate-in fade-in zoom-in duration-200">
+              <h4 className="font-extrabold text-sm text-foreground flex items-center gap-1.5">
+                <Smile className="h-4 w-4 text-primary" /> Create New Profile
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Child's Name</label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Zosia"
+                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Age</label>
+                  <select
+                    value={newAge}
+                    onChange={(e) => setNewAge(Number(e.target.value))}
+                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition font-bold text-foreground"
+                  >
+                    {[5, 6, 7, 8].map(age => (
+                      <option key={age} value={age}>Age {age}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Interests (influence cartoons!)</label>
+                  <input
+                    type="text"
+                    value={newInterests}
+                    onChange={(e) => setNewInterests(e.target.value)}
+                    placeholder="e.g. volcanoes, dinosaurs, baking"
+                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Favorite Art Style</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {["crayon sketch", "claymation", "retro cartoon", "watercolor"].map(style => (
+                      <button
+                        key={style}
+                        type="button"
+                        onClick={() => setNewArtStyle(style)}
+                        className={`py-2 rounded-xl text-xs font-bold border transition capitalize ${
+                          newArtStyle === style
+                            ? "bg-primary/10 border-primary text-primary shadow-soft"
+                            : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {style}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2.5 justify-end pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="px-4 py-2 text-xs font-bold rounded-xl border border-border bg-background text-muted-foreground hover:bg-secondary transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddChild}
+                  className="px-4 py-2 text-xs font-extrabold rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition shadow-soft"
+                >
+                  Save Profile
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
+              {childProfiles.map((p, idx) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => selectChild(idx)}
+                  className={`relative text-left shrink-0 w-52 p-4 rounded-2xl border-2 cursor-pointer snap-start transition-all shadow-soft group ${
+                    selectedChildIdx === idx
+                      ? "border-primary bg-primary/5 shadow-medium scale-[1.01]"
+                      : "border-border bg-card hover:border-primary/45"
+                  }`}
+                >
+                  <span
+                    onClick={(e) => handleDeleteChild(idx, e)}
+                    className="absolute top-2 right-2 text-muted-foreground/30 hover:text-destructive p-1 rounded-lg transition-colors z-10"
+                    title={`Delete profile for ${p.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xl">🧒</span>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-foreground truncate max-w-[110px]">{p.name}</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground">Age {p.ageBand}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">
+                      💖 <span className="font-semibold text-foreground/80">{p.interests}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-snug">
+                      🎨 <span className="font-semibold text-foreground/80 capitalize">{p.artStyle}</span>
+                    </p>
+                  </div>
+                  {selectedChildIdx === idx && (
+                    <span className="absolute bottom-2.5 right-2.5 bg-primary/10 text-primary text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                      Selected
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <form onSubmit={onSubmit} className="space-y-7 max-w-2xl mx-auto">
           <div className="relative">
@@ -179,38 +447,6 @@ function HomePage() {
             </div>
           </div>
 
-          {/* Premium MCP Steering Panel */}
-          {canUseOmni && (
-            <div className="border border-accent/25 bg-accent/5 rounded-3xl p-5 text-left max-w-xl mx-auto space-y-3 shadow-medium">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/20 text-accent">
-                  <Sparkles className="h-4 w-4 animate-pulse" />
-                </div>
-                <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-accent">
-                  🔥 Active Prompt-Steering Panel (Dev Mode)
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                This premium pipeline uses our <strong>Arize Phoenix & OpenTelemetry Closed-Loop Engine</strong>. 
-                Type custom directives below to steer how our multi-agent team adjusts prompt parameters and drawing aesthetics!
-              </p>
-              <textarea
-                value={userSteerage}
-                onChange={(e) => setUserSteerage(e.target.value)}
-                placeholder="e.g., Make the visual drawings feel futuristic and cosmic, or make the narrator speak with high energetic enthusiasm..."
-                rows={3}
-                className="w-full text-sm p-3.5 rounded-2xl bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/15 transition placeholder:text-muted-foreground/40 text-foreground"
-                disabled={submitting}
-              />
-              <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold">
-                <span>Targeting: Gemini Omni + Phoenix MCP Co-Processor</span>
-                <span className="text-accent bg-accent/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                  Loop Ready
-                </span>
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               For age
@@ -220,7 +456,10 @@ function HomePage() {
                 <button
                   key={age}
                   type="button"
-                  onClick={() => setAgeBand(age)}
+                  onClick={() => {
+                    setAgeBand(age);
+                    setSelectedChildIdx(null); // Clear active child selection if custom age selected manually
+                  }}
                   disabled={submitting}
                   aria-pressed={ageBand === age}
                   className={`h-14 w-14 rounded-2xl font-extrabold text-xl transition-all ${

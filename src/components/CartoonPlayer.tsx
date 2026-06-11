@@ -21,6 +21,7 @@ export function CartoonPlayer({ scenes, topic }: CartoonPlayerProps) {
   const [muted, setMuted] = useState(false);
   const [started, setStarted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const bgAudioRef = useRef<HTMLAudioElement>(null);
 
   const scene = ordered[current];
 
@@ -35,6 +36,19 @@ export function CartoonPlayer({ scenes, topic }: CartoonPlayerProps) {
       a.pause();
     }
   }, [playing, muted, current, scene]);
+
+  // Sync background music to cartoon player's state
+  useEffect(() => {
+    const bg = bgAudioRef.current;
+    if (!bg) return;
+    bg.volume = 0.08; // Gentle bed under narration
+    bg.muted = muted;
+    if (started && playing) {
+      bg.play().catch(() => {});
+    } else {
+      bg.pause();
+    }
+  }, [playing, muted, started]);
 
   // Reset audio when scene changes.
   useEffect(() => {
@@ -148,6 +162,7 @@ export function CartoonPlayer({ scenes, topic }: CartoonPlayerProps) {
       </div>
 
       <audio ref={audioRef} src={scene.audioUrl} onEnded={handleEnded} preload="auto" />
+      <audio ref={bgAudioRef} src="https://assets.mixkit.co/music/preview/mixkit-playtime-57.mp3" loop preload="auto" />
     </div>
   );
 }
