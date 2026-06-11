@@ -77,19 +77,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "KidTok Classroom" },
+      {
+        name: "description",
+        content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
+      },
+      { name: "author", content: "KidTok" },
+      { property: "og:title", content: "KidTok Classroom" },
+      {
+        property: "og:description",
+        content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/kidtok-logo.png" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap",
       },
     ],
   }),
@@ -118,8 +127,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="min-h-screen flex flex-col">
+        <EnvBanner />
+        <AppHeader />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <Toaster richColors position="top-center" />
+      </div>
     </QueryClientProvider>
   );
 }
