@@ -152,6 +152,7 @@ function HomePage() {
             <span className="softchip"><Heart className="h-3.5 w-3.5 text-accent" /> Kid‑friendly</span>
           </div>
         </form>
+        </div>
       </section>
 
       {/* Popular topics */}
