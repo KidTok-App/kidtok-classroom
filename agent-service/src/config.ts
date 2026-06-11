@@ -30,6 +30,7 @@ export interface ServiceConfig {
   /** "adk" (Google Agent Development Kit, primary) or "rest" (documented fallback pipeline). */
   orchestratorEngine: "adk" | "rest";
   elevenlabsApiKey?: string;
+  kieApiKey?: string;
 }
 
 function num(v: string | undefined, fallback: number): number {
@@ -64,6 +65,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
     fakeProviders,
     orchestratorEngine: (env.ORCHESTRATOR_ENGINE === "rest" ? "rest" : "adk"),
     elevenlabsApiKey: env.ELEVENLABS_API_KEY || "",
+    kieApiKey: env.KIE_API_KEY || "",
   };
 
   if (!fakeProviders) {

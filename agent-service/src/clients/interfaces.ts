@@ -99,6 +99,10 @@ export interface PhoenixMcp {
   close(): Promise<void>;
 }
 
+export interface VideoGen {
+  generateVideo(prompt: string, referenceImageUrl?: string): Promise<string>;
+}
+
 export interface Providers {
   textLlm: TextLlm;
   imageGen: ImageGen;
@@ -107,6 +111,7 @@ export interface Providers {
   storage: AssetStorage;
   store: EpisodeStore;
   phoenix: PhoenixMcp;
+  videoGen: VideoGen;
   /** Flush OTel spans so Phoenix can serve them to the reviewer. */
   forceFlushTracing: () => Promise<void>;
 }

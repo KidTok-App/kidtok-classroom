@@ -133,6 +133,8 @@ export class QualityReviewerAgent {
       slow("ScriptAgent", 90_000);
       slow("SceneImageAgent", 240_000);
       slow("NarrationAgent", 120_000);
+      slow("PromptOptimizerAgent", 60_000);
+      slow("VideoGenAgent", 180_000);
       const errored = stages.filter((s) => s.errored);
       if (errored.length > 0) {
         score -= 5 * errored.length;
@@ -301,6 +303,8 @@ function summarizeStages(spans: SpanSummary[]): StageStats[] {
     "SceneImageAgent",
     "NarrationAgent",
     "AssemblyAgent",
+    "PromptOptimizerAgent",
+    "VideoGenAgent",
   ];
   const out: StageStats[] = [];
   for (const prefix of AGENT_PREFIXES) {

@@ -118,9 +118,10 @@ export function createServer(deps: ServerDeps): Express {
       const authHeader = req.headers.authorization;
       const caller = parseAuthToken(authHeader);
 
-      const body = (req.body ?? {}) as { topic?: unknown; ageBand?: unknown };
+      const body = (req.body ?? {}) as { topic?: unknown; ageBand?: unknown; generationMode?: unknown };
       const topic = typeof body.topic === "string" ? body.topic.trim() : "";
       const ageBand = Number(body.ageBand);
+      const generationMode = body.generationMode === "video" ? "video" : "slides";
 
       if (!topic || topic.length > 300) {
         res.status(400).json({ error: "topic is required (non-empty string, max 300 chars)" });
@@ -137,6 +138,7 @@ export function createServer(deps: ServerDeps): Express {
         ageBand,
         createdAt: new Date().toISOString(),
         status: "scripting",
+        generationMode,
         ...(caller ? { ownerId: caller.id } : {}),
       };
       await deps.store.create(doc);

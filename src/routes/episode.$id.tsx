@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getEpisode, isApiConfigured } from "@/lib/agentApi";
 import { CartoonPlayer } from "@/components/CartoonPlayer";
+import { CinematicVideoPlayer } from "@/components/CinematicVideoPlayer";
 import { StatusScreen } from "@/components/StatusScreen";
 
 export const Route = createFileRoute("/episode/$id")({
@@ -135,22 +136,38 @@ function EpisodePage() {
     return <StatusScreen status="scripting" topic="Loading…" />;
   }
 
-  if (data.status === "ready" && data.scenes && data.scenes.length > 0) {
-    if (!isPreloaded) {
-      return <StatusScreen status="preloading" progress={preloadingProgress} topic={data.topic} />;
+  if (data.status === "ready") {
+    if (data.generationMode === "video" && data.videoUrl) {
+      return (
+        <div className="mx-auto max-w-5xl px-3 sm:px-4 py-6">
+          <Link to="/" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="h-4 w-4" /> New cartoon
+          </Link>
+          <CinematicVideoPlayer videoUrl={data.videoUrl} topic={data.topic} ageBand={data.ageBand} />
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Age {data.ageBand} · Powered by Gemini Omni
+          </p>
+        </div>
+      );
     }
 
-    return (
-      <div className="mx-auto max-w-5xl px-3 sm:px-4 py-6">
-        <Link to="/" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-4 w-4" /> New cartoon
-        </Link>
-        <CartoonPlayer scenes={data.scenes} topic={data.topic} />
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Age {data.ageBand} · {data.scenes.length} scenes
-        </p>
-      </div>
-    );
+    if (data.scenes && data.scenes.length > 0) {
+      if (!isPreloaded) {
+        return <StatusScreen status="preloading" progress={preloadingProgress} topic={data.topic} />;
+      }
+
+      return (
+        <div className="mx-auto max-w-5xl px-3 sm:px-4 py-6">
+          <Link to="/" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="h-4 w-4" /> New cartoon
+          </Link>
+          <CartoonPlayer scenes={data.scenes} topic={data.topic} />
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Age {data.ageBand} · {data.scenes.length} scenes
+          </p>
+        </div>
+      );
+    }
   }
 
   if (data.status === "failed") {

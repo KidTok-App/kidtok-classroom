@@ -7,6 +7,7 @@ export type AgentStatus =
   | "scripting"
   | "planning_scenes"
   | "generating_images"
+  | "generating_video"
   | "narrating"
   | "reviewing"
   | "ready"
@@ -73,6 +74,8 @@ export interface EpisodeDoc {
   ageBand: number;
   createdAt: string; // ISO
   status: AgentStatus;
+  generationMode?: "slides" | "video";
+  videoUrl?: string;
   ownerId?: string;
   title?: string;
   scenes?: SceneAsset[];
@@ -89,6 +92,8 @@ export function toPublicEpisode(doc: EpisodeDoc): Record<string, unknown> {
     ageBand: doc.ageBand,
     createdAt: doc.createdAt,
     status: doc.status,
+    ...(doc.generationMode ? { generationMode: doc.generationMode } : {}),
+    ...(doc.videoUrl ? { videoUrl: doc.videoUrl } : {}),
     ...(doc.ownerId ? { ownerId: doc.ownerId } : {}),
     ...(doc.title ? { title: doc.title } : {}),
     ...(doc.scenes ? { scenes: doc.scenes } : {}),

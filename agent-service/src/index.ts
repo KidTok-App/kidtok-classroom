@@ -25,7 +25,9 @@ import {
   FakeVisualSafety,
   InMemoryEpisodeStore,
   LocalDirStorage,
+  FakeVideoGen,
 } from "./clients/fakes.js";
+import { KieOmniVideoGenerator } from "./clients/videoGen.js";
 
 export interface BootResult {
   cfg: ReturnType<typeof loadConfig>;
@@ -54,6 +56,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
       storage: new LocalDirStorage(localAssetsDir, `http://localhost:${cfg.port}/assets`),
       store: new InMemoryEpisodeStore(),
       phoenix: new FakePhoenixMcp(tracing.memoryExporter),
+      videoGen: new FakeVideoGen(),
       forceFlushTracing: tracing.forceFlush,
     };
   } else {
@@ -91,6 +94,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
         commandOverride: cfg.phoenixMcpCommand,
         promptModelName: cfg.textModel,
       }),
+      videoGen: new KieOmniVideoGenerator(cfg.kieApiKey, false),
       forceFlushTracing: tracing.forceFlush,
     };
   }

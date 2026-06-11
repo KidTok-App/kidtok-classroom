@@ -12,6 +12,7 @@ export type AgentStatus =
   | "scripting"
   | "planning_scenes"
   | "generating_images"
+  | "generating_video"
   | "narrating"
   | "reviewing"
   | "preloading"
@@ -35,6 +36,8 @@ export interface Episode {
   ageBand: number;
   createdAt: string;
   status: AgentStatus;
+  generationMode?: "slides" | "video";
+  videoUrl?: string;
   scenes?: Scene[];
   error?: string;
 }
@@ -65,6 +68,7 @@ async function handle<T>(res: Response): Promise<T> {
 export async function createEpisode(input: {
   topic: string;
   ageBand: number;
+  generationMode?: "slides" | "video";
 }): Promise<{ id: string }> {
   const res = await fetch(`${BASE}/episodes`, {
     method: "POST",
@@ -95,6 +99,7 @@ export const STATUS_COPY: Record<AgentStatus, { title: string; subtitle: string;
   scripting: { title: "Writing the story…", subtitle: "Our writer agent is dreaming up a script.", step: 1 },
   planning_scenes: { title: "Planning the scenes…", subtitle: "Sketching out what each picture will show.", step: 2 },
   generating_images: { title: "Drawing the cartoon…", subtitle: "Our artist agent is painting every scene.", step: 3 },
+  generating_video: { title: "Filming movie with Gemini Omni…", subtitle: "Rendering continuous animation and audio.", step: 3 },
   narrating: { title: "Recording the voice…", subtitle: "A friendly narrator is reading the story.", step: 4 },
   reviewing: { title: "Double‑checking everything…", subtitle: "Making sure it's kid‑perfect.", step: 5 },
   preloading: { title: "Tuning the magic player…", subtitle: "Gathering voice recordings and custom paintings.", step: 6 },

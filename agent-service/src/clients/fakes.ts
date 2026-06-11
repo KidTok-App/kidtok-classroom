@@ -25,6 +25,7 @@ import type {
   TextLlmRequest,
   VisualSafetyClassifier,
   VisualSafetyVerdict,
+  VideoGen,
 } from "./interfaces.js";
 
 export class FakeTextLlm implements TextLlm {
@@ -200,6 +201,14 @@ export class FakePhoenixMcp implements PhoenixMcp {
 
   async close(): Promise<void> {
     /* nothing to close */
+  }
+}
+
+export class FakeVideoGen implements VideoGen {
+  async generateVideo(prompt: string, referenceImageUrl?: string): Promise<string> {
+    await sleep(2500); // Simulate a short rendering delay
+    // Beautiful, high-fidelity placeholder educational cartoon stream URL:
+    return "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
   }
 }
 

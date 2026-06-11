@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Sparkles, Zap, Shield, Heart, BookOpen } from "lucide-react";
+import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
 
@@ -39,6 +39,7 @@ function HomePage() {
   const navigate = useNavigate();
   const [topic, setTopic] = useState("");
   const [ageBand, setAgeBand] = useState<number>(6);
+  const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (rawTopic: string) => {
@@ -53,7 +54,7 @@ function HomePage() {
     }
     setSubmitting(true);
     try {
-      const { id } = await createEpisode({ topic: t, ageBand });
+      const { id } = await createEpisode({ topic: t, ageBand, generationMode });
       navigate({ to: "/episode/$id", params: { id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't start your cartoon.");
@@ -99,6 +100,60 @@ function HomePage() {
               className="w-full text-lg sm:text-xl px-6 py-5 rounded-full bg-card border-2 border-border shadow-soft focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 transition"
               disabled={submitting}
             />
+          </div>
+
+          {/* Mode Switch Cards */}
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Generation Mode
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
+              <button
+                type="button"
+                onClick={() => setGenerationMode("slides")}
+                disabled={submitting}
+                className={`relative flex items-center gap-4 p-4 rounded-3xl border-2 text-left transition-all ${
+                  generationMode === "slides"
+                    ? "border-primary bg-primary/5 shadow-medium scale-[1.01]"
+                    : "border-border bg-card hover:border-primary/50"
+                }`}
+              >
+                <div className={`p-3 rounded-2xl ${generationMode === "slides" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                  <Presentation className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm sm:text-base">🎒 Classroom Slides</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">Classic step-by-step cartoon pages with voice narration.</p>
+                </div>
+                {generationMode === "slides" && (
+                  <span className="absolute top-2.5 right-2.5 bg-primary/10 text-primary text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Default
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGenerationMode("video")}
+                disabled={submitting}
+                className={`relative flex items-center gap-4 p-4 rounded-3xl border-2 text-left transition-all ${
+                  generationMode === "video"
+                    ? "border-accent bg-accent/5 shadow-medium scale-[1.01]"
+                    : "border-border bg-card hover:border-accent/50"
+                }`}
+              >
+                <div className={`p-3 rounded-2xl ${generationMode === "video" ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
+                  <Film className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm sm:text-base">🎬 Omni Movie</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">Contiguous Gemini Omni-video premium animation.</p>
+                </div>
+                <span className="absolute top-2.5 right-2.5 bg-accent/10 text-accent text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Premium
+                </span>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col items-center gap-3">
