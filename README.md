@@ -1,4 +1,4 @@
-# KidTok Classroom 📺✨
+# KidTok Classroom  📺✨
 
 **Type a topic, pick an age, get a narrated educational cartoon — generated end-to-end by a six-agent AI pipeline.**
 
