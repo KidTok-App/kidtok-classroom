@@ -4,6 +4,9 @@ import { toast } from "sonner";
 import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
+import { useAuth } from "@/lib/auth";
+
+const OMNI_ALLOWED_EMAIL = "wiktor@kidtok.co";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +44,8 @@ function HomePage() {
   const [ageBand, setAgeBand] = useState<number>(6);
   const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const canUseOmni = user?.email === OMNI_ALLOWED_EMAIL;
 
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
@@ -52,9 +57,10 @@ function HomePage() {
       toast.error("Backend not configured. Set VITE_AGENT_API_URL.");
       return;
     }
+    const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
     try {
-      const { id } = await createEpisode({ topic: t, ageBand, generationMode });
+      const { id } = await createEpisode({ topic: t, ageBand, generationMode: effectiveMode });
       navigate({ to: "/episode/$id", params: { id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't start your cartoon.");
@@ -134,27 +140,35 @@ function HomePage() {
 
               <button
                 type="button"
-                onClick={() => setGenerationMode("video")}
-                disabled={submitting}
+                onClick={() => {
+                  if (!canUseOmni) return;
+                  setGenerationMode("video");
+                }}
+                disabled={submitting || !canUseOmni}
+                aria-disabled={!canUseOmni}
+                title={!canUseOmni ? "Coming soon — not part of the hackathon submission" : undefined}
                 className={`relative flex items-center gap-4 p-4 rounded-3xl border-2 text-left transition-all ${
-                  generationMode === "video"
-                    ? "border-accent bg-accent/5 shadow-medium scale-[1.01]"
-                    : "border-border bg-card hover:border-accent/50"
+                  !canUseOmni
+                    ? "border-border bg-muted/40 opacity-60 grayscale cursor-not-allowed"
+                    : generationMode === "video"
+                      ? "border-accent bg-accent/5 shadow-medium scale-[1.01]"
+                      : "border-border bg-card hover:border-accent/50"
                 }`}
               >
-                <div className={`p-3 rounded-2xl ${generationMode === "video" ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
+                <div className={`p-3 rounded-2xl ${!canUseOmni ? "bg-muted text-muted-foreground" : generationMode === "video" ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
                   <Film className="h-6 w-6" />
                 </div>
                 <div>
                   <h4 className="font-extrabold text-sm sm:text-base">🎬 Omni Movie</h4>
                   <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">Contiguous Gemini Omni-video premium animation.</p>
                 </div>
-                <span className="absolute top-2.5 right-2.5 bg-accent/10 text-accent text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Premium
+                <span className={`absolute top-2.5 right-2.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${!canUseOmni ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent"}`}>
+                  {!canUseOmni ? "Coming soon" : "Premium"}
                 </span>
               </button>
             </div>
           </div>
+
 
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
