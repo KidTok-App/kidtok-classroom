@@ -157,12 +157,14 @@ kidtok-agent-service@1.0.0
 └── zod@4.4.3
 ```
 
+> **Transitive-dependency note:** the partner package `@arizeai/phoenix-mcp` → `@arizeai/phoenix-client` declares cross-provider SDKs (`@anthropic-ai/sdk`, `openai`) for Phoenix's own prompt-to-SDK translation helpers, so those names appear in `package-lock.json` as transitive metadata of the **partner's** tool. The shipped KidTok code contains **zero imports or calls** to them (verified by grep across `agent-service/` source), no credentials for those providers exist in the environment, and no code path invokes them. Every LLM / image / TTS call in this service goes to Google endpoints exclusively.
+
 ## Verification status
 
 - ✅ `npm run build` — zero TypeScript errors (strict mode, `noUncheckedIndexedAccess`).
 - ✅ `npm run smoke` — full offline pipeline run (fake providers): two episodes through the live HTTP API; verified the status flow, exactly 5 scenes with image+audio+duration, animation cycling, reviewer span retrieval (15 spans), weakness detection, prompt improvement, and **episode 2 picking up the new prompt version** (`fake-v1 → fake-v2`).
 - ✅ Phoenix MCP server boot — the pinned `@arizeai/phoenix-mcp@2.3.7` was spawned from `node_modules` over stdio and its tool list verified: `get-latest-prompt`, `upsert-prompt`, `get-spans` all present (this server version exposes trace data via `get-spans`; it has no separate `list-traces` tool).
-- ✅ Forbidden-vendor sweep — `grep -ri` across `agent-service/` (shipped code) finds zero references to any non-Google AI/TTS/DB/queue/cloud vendor; legacy-reference files that mentioned them were stripped to compliance stubs after porting (see `agent-service/legacy-reference/PORTING.md`).
+- ✅ Forbidden-vendor sweep — `grep -ri` across `agent-service/` shipped code (`src/`, `Dockerfile`, `.env.example`, configs, docs) finds zero references to any non-Google AI/TTS/DB/queue/cloud vendor; legacy-reference files that mentioned them were stripped to compliance stubs after porting (see `agent-service/legacy-reference/PORTING.md`). The only remaining occurrences anywhere are lockfile metadata of the partner's own MCP package (see the transitive-dependency note above).
 - ⚠️ `docker build` — **not executed** in the build environment (no Docker daemon available); the multi-stage Dockerfile was verified by inspection (`npm ci` → `tsc` → prod-deps-only runtime stage, `CMD node dist/index.js`, listens on `$PORT`).
 - ⏳ Real-credential E2E (`npm run e2e`) — ready to run as soon as `GOOGLE_CLOUD_PROJECT_ID`, `GCS_BUCKET`, `PHOENIX_HOST`, `PHOENIX_API_KEY`, and Application Default Credentials are provisioned. It executes the volcano episode, prints the full manifest, then runs a second episode and asserts the Phoenix prompt-version pickup.
 
