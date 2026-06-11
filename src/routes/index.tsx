@@ -206,12 +206,45 @@ function FeatureCard({ icon, title, body }: { icon: React.ReactNode; title: stri
 }
 
 function Decor() {
+  // Positions as % so they scale well on mobile too.
+  const stars: Array<{
+    top?: string; bottom?: string; left?: string; right?: string;
+    size: number; color: string; delay: string; dur: string;
+  }> = [
+    { top: "6%",  left: "4%",   size: 26, color: "text-sunshine", delay: "0s",   dur: "2.2s" },
+    { top: "12%", left: "22%",  size: 14, color: "text-primary",  delay: "0.4s", dur: "1.8s" },
+    { top: "4%",  left: "48%",  size: 18, color: "text-accent",   delay: "0.9s", dur: "2.6s" },
+    { top: "10%", right: "20%", size: 16, color: "text-primary",  delay: "1.3s", dur: "2.1s" },
+    { top: "8%",  right: "5%",  size: 24, color: "text-sunshine", delay: "0.2s", dur: "2.4s" },
+    { top: "30%", left: "8%",   size: 12, color: "text-accent",   delay: "0.7s", dur: "1.7s" },
+    { top: "38%", right: "8%",  size: 20, color: "text-accent",   delay: "0.5s", dur: "2.3s" },
+    { top: "52%", left: "3%",   size: 18, color: "text-primary",  delay: "1.0s", dur: "2.0s" },
+    { top: "58%", right: "4%",  size: 14, color: "text-sunshine", delay: "0.3s", dur: "1.9s" },
+    { bottom: "18%", left: "18%", size: 16, color: "text-accent", delay: "1.4s", dur: "2.5s" },
+    { bottom: "8%",  left: "42%", size: 12, color: "text-primary",delay: "0.6s", dur: "1.8s" },
+    { bottom: "14%", right: "22%",size: 22, color: "text-sunshine",delay: "0.1s",dur: "2.7s" },
+    { bottom: "6%",  right: "6%", size: 18, color: "text-accent", delay: "0.8s", dur: "2.0s" },
+    { bottom: "26%", left: "30%", size: 10, color: "text-sunshine",delay: "1.2s",dur: "1.6s" },
+    { top: "22%", left: "38%",   size: 10, color: "text-primary", delay: "1.5s", dur: "1.7s" },
+  ];
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute top-10 left-6 text-sunshine twinkle"><StarSparkle size={28} /></div>
-      <div className="absolute top-32 right-10 text-accent twinkle" style={{ animationDelay: "0.6s" }}><StarSparkle size={22} /></div>
-      <div className="absolute bottom-6 left-12 text-primary twinkle" style={{ animationDelay: "1.1s" }}><StarSparkle size={18} /></div>
-      <div className="absolute bottom-10 right-16 text-sunshine twinkle" style={{ animationDelay: "0.3s" }}><StarSparkle size={26} /></div>
+      {stars.map((s, i) => (
+        <div
+          key={i}
+          className={`absolute twinkle ${s.color} drop-shadow-[0_2px_6px_rgba(0,0,0,0.08)]`}
+          style={{
+            top: s.top,
+            bottom: s.bottom,
+            left: s.left,
+            right: s.right,
+            animationDelay: s.delay,
+            animationDuration: s.dur,
+          }}
+        >
+          <StarSparkle size={s.size} />
+        </div>
+      ))}
     </div>
   );
 }
