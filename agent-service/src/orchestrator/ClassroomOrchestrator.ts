@@ -186,6 +186,7 @@ Ensure you explicitly describe:
                 safetyVerdict: scriptOut.safetyVerdict,
                 userSteerage: doc.userSteerage,
                 childProfile: doc.childProfile,
+                promptName: planOut.promptName,
               }),
             );
 
@@ -268,6 +269,7 @@ Ensure you explicitly describe:
               safetyVerdict: scriptOut.safetyVerdict,
               userSteerage: doc.userSteerage,
               childProfile: doc.childProfile,
+              promptName: planOut.promptName,
             }),
           );
 
