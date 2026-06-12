@@ -136,6 +136,22 @@ export async function getEpisode(id: string): Promise<Episode> {
   return handle(res);
 }
 
+/** Retroactively tag (or re-tag) an episode with a child profile. Owner-only. */
+export async function updateEpisodeChild(
+  id: string,
+  childProfile: ChildProfile,
+): Promise<Episode> {
+  const res = await fetch(`${BASE}/episodes/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ childProfile }),
+  });
+  return handle(res);
+}
+
 export async function listEpisodes(): Promise<Episode[]> {
   const res = await fetch(`${BASE}/episodes`, {
     headers: getAuthHeaders(),
