@@ -289,6 +289,54 @@ export function createServer(deps: ServerDeps): Express {
     }
   });
 
+  // Retroactively tag (or untag) an existing episode with a child profile.
+  // Owner-only. Used by the Self-Improvement page to assign legacy/untagged
+  // cartoons to a child so per-child stats reflect reality.
+  app.patch("/episodes/:id", async (req, res) => {
+    try {
+      const caller = await requireCaller(req, deps.cfg);
+      if (!caller) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+      const doc = await deps.store.get(req.params.id);
+      if (!doc) {
+        res.status(404).json({ error: "episode not found" });
+        return;
+      }
+      if (doc.ownerId && doc.ownerId !== caller.id) {
+        res.status(404).json({ error: "episode not found" });
+        return;
+      }
+      const body = (req.body ?? {}) as { childProfile?: unknown };
+      if (!("childProfile" in body)) {
+        res.status(400).json({ error: "childProfile field is required (object or null)" });
+        return;
+      }
+      let nextProfile: EpisodeDoc["childProfile"] | null;
+      if (body.childProfile === null) {
+        nextProfile = null;
+      } else {
+        const sanitized = sanitizeChildProfile(body.childProfile);
+        if (!sanitized) {
+          res.status(400).json({ error: "childProfile must be a valid profile object or null" });
+          return;
+        }
+        nextProfile = sanitized;
+      }
+      // Firestore client is configured with ignoreUndefinedProperties; pass
+      // null to clear the field via merge.
+      await deps.store.update(req.params.id, {
+        childProfile: nextProfile ?? undefined,
+      });
+      const updated = await deps.store.get(req.params.id);
+      res.json(updated ? toPublicEpisode(updated) : { id: req.params.id });
+    } catch (err) {
+      console.error("[api] PATCH /episodes/:id failed:", err);
+      res.status(500).json({ error: "failed to update episode" });
+    }
+  });
+
   app.get("/episodes", async (req, res) => {
     try {
       const caller = await requireCaller(req, deps.cfg);
