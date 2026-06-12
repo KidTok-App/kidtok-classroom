@@ -136,6 +136,7 @@ function SelfImprovementPage() {
   const [savingSteerage, setSavingSteerage] = useState(false);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(true);
+  const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
 
   // Load user steering, prompt history, episodes, and active child
@@ -160,8 +161,15 @@ function SelfImprovementPage() {
       try {
         const list = await listEpisodes();
         setEpisodes(Array.isArray(list) ? list : []);
+        setEpisodesError(null);
       } catch (err) {
         console.error("Error fetching episodes:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        setEpisodesError(
+          /401|unauthor/i.test(msg)
+            ? "Couldn't load your cartoons — please sign in again."
+            : "Couldn't load your cartoons just now. Try again in a moment."
+        );
       } finally {
         setLoadingEpisodes(false);
       }
@@ -171,8 +179,9 @@ function SelfImprovementPage() {
   }, [user?.id]);
 
   // Real, parent-friendly insights derived from this user's episodes
-  const childEpisodes = activeChild
-    ? episodes.filter((e) => e.childProfile?.name === activeChild.name)
+  const normalizedActiveName = activeChild?.name.trim().toLowerCase() ?? null;
+  const childEpisodes = normalizedActiveName
+    ? episodes.filter((e) => e.childProfile?.name?.trim().toLowerCase() === normalizedActiveName)
     : episodes;
   const totalForChild = childEpisodes.length;
   const readyEpisodes = childEpisodes.filter((e) => e.status === "ready");
@@ -193,6 +202,10 @@ function SelfImprovementPage() {
   const latestPromptChange = promptHistory.length > 0
     ? promptHistory[promptHistory.length - 1]
     : null;
+  // Show untagged-episodes hint when the user has episodes but none match the active child
+  const untaggedCount = activeChild ? episodes.length - childEpisodes.length : 0;
+  const showUntaggedHint =
+    !!activeChild && episodes.length > 0 && childEpisodes.length === 0;
 
   const saveSteerage = () => {
     setSavingSteerage(true);
@@ -339,6 +352,21 @@ function SelfImprovementPage() {
             )}
           </div>
 
+          {/* Error / untagged hints */}
+          {episodesError && (
+            <div className="bg-destructive/5 border-2 border-destructive/30 rounded-2xl p-4 text-sm text-destructive">
+              {episodesError}
+            </div>
+          )}
+          {!episodesError && showUntaggedHint && (
+            <div className="bg-amber-500/5 border-2 border-amber-500/30 rounded-2xl p-4 text-sm text-foreground/85 leading-relaxed">
+              We found {untaggedCount} cartoon{untaggedCount === 1 ? "" : "s"} on your account but none
+              are tagged for <span className="font-semibold">{activeChild?.name}</span> yet. Make sure
+              {" "}<span className="font-semibold">{activeChild?.name}</span> is selected on the home page
+              before generating, so the reviewer can personalize future cartoons for them.
+            </div>
+          )}
+
           {/* Real score cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-card border-2 border-border rounded-3xl p-6 shadow-soft">
@@ -417,7 +445,16 @@ function SelfImprovementPage() {
                   </span>
                 </div>
                 <p className="text-sm text-foreground/90 leading-relaxed">
-                  {humanizePromptChange(latestPromptChange.changeSummary, activeChild?.name ?? null)}
+                  {(() => {
+                    const raw = latestPromptChange.changeSummary || "";
+                    const name = activeChild?.name;
+                    // If the reviewer's own summary already mentions this child, show it verbatim
+                    // (capitalized) so parents get the personalized signal directly.
+                    if (name && raw.toLowerCase().includes(name.toLowerCase())) {
+                      return raw.charAt(0).toUpperCase() + raw.slice(1);
+                    }
+                    return humanizePromptChange(raw, name ?? null);
+                  })()}
                 </p>
               </div>
             )}

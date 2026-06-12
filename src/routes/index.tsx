@@ -218,7 +218,16 @@ function HomePage() {
       storedSteerage = localStorage.getItem("kidtok_user_steerage") || "";
     }
 
-    const childProfile = selectedChildIdx !== null ? childProfiles[selectedChildIdx] : undefined;
+    let effectiveChildIdx = selectedChildIdx;
+    if (effectiveChildIdx === null && childProfiles.length === 1) {
+      effectiveChildIdx = 0;
+      toast.info(`Tagging this cartoon for ${childProfiles[0].name}.`);
+    } else if (effectiveChildIdx === null && childProfiles.length > 1) {
+      toast.error("Pick which child this cartoon is for so the AI can personalize it.");
+      setSubmitting(false);
+      return;
+    }
+    const childProfile = effectiveChildIdx !== null ? childProfiles[effectiveChildIdx] : undefined;
 
     try {
       const { id } = await createEpisode({ 

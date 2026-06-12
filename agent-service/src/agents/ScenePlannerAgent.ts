@@ -85,11 +85,24 @@ export class ScenePlannerAgent {
     );
 
     // 2. One consistent visual description per scene.
+    const personalizationLines: string[] = [];
+    if (input.childProfile) {
+      const cp = input.childProfile;
+      personalizationLines.push(
+        `Child viewer: ${cp.name} (age ${cp.ageBand})`,
+        cp.interests
+          ? `Personalization hint — weave these interests into recurring visual cues (props, characters, environments) without distracting from the topic: ${cp.interests}.`
+          : "",
+        cp.artStyle ? `Preferred art style anchor: ${cp.artStyle}.` : "",
+        "",
+      );
+    }
     const user = [
       `Topic: "${input.topic}"`,
       `Audience: ${ageLabel(input.ageBand)}`,
       `Episode title: ${input.script.title}`,
       "",
+      ...personalizationLines.filter(Boolean),
       ...input.script.scenes.map(
           (s, i) =>
             `Scene ${i + 1}:\n  Caption: ${s.caption}\n  Narration: ${s.narrationText}\n  Learning point: ${s.learningPoint}`,
