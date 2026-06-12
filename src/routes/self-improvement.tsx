@@ -127,24 +127,28 @@ function humanizePromptChange(summary: string, childName: string | null): string
 }
 
 function SelfImprovementPage() {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<"parent" | "developer">("parent");
   const [promptHistory, setPromptHistory] = useState<PromptHistoryItem[]>([]);
   const [loadingPrompts, setLoadingPromptHistory] = useState(true);
-  const [selectedVersion, setSelectedVersion] = useState<number>(2); // Default compare v3 to v2 (indices 2 to 1 in list)
+  const [selectedVersion, setSelectedVersion] = useState<number>(2);
   const [userSteerage, setUserSteerage] = useState("");
   const [savingSteerage, setSavingSteerage] = useState(false);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [loadingEpisodes, setLoadingEpisodes] = useState(true);
+  const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
 
-  // Load user steering and prompt history
+  // Load user steering, prompt history, episodes, and active child
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("kidtok_user_steerage") || "";
       setUserSteerage(stored);
     }
+    setActiveChild(loadActiveChild(user?.id));
 
     async function loadHistory() {
       try {
         const history = await getPromptHistory();
-        // Sort history by versionId asc or simply use as is
         setPromptHistory(history);
       } catch (err) {
         console.error("Error fetching prompt history:", err);
@@ -152,8 +156,43 @@ function SelfImprovementPage() {
         setLoadingPromptHistory(false);
       }
     }
+    async function loadEpisodes() {
+      try {
+        const list = await listEpisodes();
+        setEpisodes(Array.isArray(list) ? list : []);
+      } catch (err) {
+        console.error("Error fetching episodes:", err);
+      } finally {
+        setLoadingEpisodes(false);
+      }
+    }
     void loadHistory();
-  }, []);
+    void loadEpisodes();
+  }, [user?.id]);
+
+  // Real, parent-friendly insights derived from this user's episodes
+  const childEpisodes = activeChild
+    ? episodes.filter((e) => e.childProfile?.name === activeChild.name)
+    : episodes;
+  const totalForChild = childEpisodes.length;
+  const readyEpisodes = childEpisodes.filter((e) => e.status === "ready");
+  const failedEpisodes = childEpisodes.filter((e) => e.status === "failed");
+  const successRate = totalForChild > 0
+    ? Math.round((readyEpisodes.length / totalForChild) * 1000) / 10
+    : null;
+  const reviewedEpisodes = childEpisodes.filter((e) => typeof e.review?.score === "number");
+  const avgScore = reviewedEpisodes.length > 0
+    ? Math.round(
+        (reviewedEpisodes.reduce((sum, e) => sum + (e.review?.score ?? 0), 0) /
+          reviewedEpisodes.length) * 10
+      ) / 10
+    : null;
+  const recentEpisodes = [...childEpisodes]
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .slice(0, 4);
+  const latestPromptChange = promptHistory.length > 0
+    ? promptHistory[promptHistory.length - 1]
+    : null;
 
   const saveSteerage = () => {
     setSavingSteerage(true);
