@@ -162,7 +162,7 @@ export function CartoonPlayer({ scenes, topic }: CartoonPlayerProps) {
       </div>
 
       <audio ref={audioRef} src={scene.audioUrl} onEnded={handleEnded} preload="auto" />
-      <audio ref={bgAudioRef} src="https://assets.mixkit.co/music/preview/mixkit-playtime-57.mp3" loop preload="auto" />
+      <audio ref={bgAudioRef} src="/soundhelix-8.mp3" loop preload="auto" />
     </div>
   );
 }
