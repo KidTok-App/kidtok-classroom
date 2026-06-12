@@ -17,7 +17,7 @@ import {
   TrendingUp,
   LineChart
 } from "lucide-react";
-import { getPromptHistory, PromptHistoryItem, listEpisodes, Episode, updateEpisodeChild, ChildProfile } from "@/lib/agentApi";
+import { getPromptHistory, PromptHistoryItem, listEpisodes, Episode } from "@/lib/agentApi";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/self-improvement")({
@@ -141,55 +141,6 @@ function SelfImprovementPage() {
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [childProfiles, setChildProfiles] = useState<ChildSummary[]>([]);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
-  const [tagging, setTagging] = useState<string | "bulk" | null>(null);
-
-  const toProfile = (c: ChildSummary): ChildProfile => ({
-    name: c.name,
-    ageBand: c.ageBand,
-    interests: c.interests,
-    artStyle: c.artStyle,
-  });
-
-  const retagEpisode = async (episodeId: string, target: ChildSummary, opts?: { silent?: boolean }) => {
-    setTagging(episodeId);
-    try {
-      const updated = await updateEpisodeChild(episodeId, toProfile(target));
-      setEpisodes((prev) => prev.map((e) => (e.id === episodeId ? { ...e, ...updated } : e)));
-      if (!opts?.silent) toast.success(`Tagged "${updated.topic}" for ${target.name}.`);
-    } catch (err) {
-      console.error("Error tagging episode:", err);
-      toast.error(err instanceof Error ? err.message : "Couldn't update that cartoon.");
-    } finally {
-      setTagging(null);
-    }
-  };
-
-  const tagAllUntagged = async (target: ChildSummary) => {
-    const untagged = episodes.filter((e) => !e.childProfile?.name);
-    if (untagged.length === 0) return;
-    setTagging("bulk");
-    let ok = 0;
-    let failed = 0;
-    for (const ep of untagged) {
-      try {
-        const updated = await updateEpisodeChild(ep.id, toProfile(target));
-        setEpisodes((prev) => prev.map((e) => (e.id === ep.id ? { ...e, ...updated } : e)));
-        ok++;
-      } catch (err) {
-        console.error("Bulk tag failed for", ep.id, err);
-        failed++;
-      }
-    }
-    setTagging(null);
-    if (ok > 0 && failed === 0) {
-      toast.success(`Tagged ${ok} cartoon${ok === 1 ? "" : "s"} for ${target.name}.`);
-    } else if (ok > 0) {
-      toast.warning(`Tagged ${ok} cartoons for ${target.name}; ${failed} failed — try again.`);
-    } else {
-      toast.error("Couldn't tag those cartoons. Please try again.");
-    }
-  };
-
   // Load user steering, child profiles, and episodes
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -260,20 +211,12 @@ function SelfImprovementPage() {
           reviewedEpisodes.length) * 10
       ) / 10
     : null;
-  // Recent list: show the child's tagged cartoons first, then untagged ones
-  // (so the parent can fix mistagged history without leaving the page).
-  const recentEpisodes = [
-    ...childEpisodes,
-    ...(activeChild ? episodes.filter((e) => !e.childProfile?.name) : []),
-  ]
+  const recentEpisodes = [...childEpisodes]
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
     .slice(0, 6);
   const latestPromptChange = promptHistory.length > 0
     ? promptHistory[promptHistory.length - 1]
     : null;
-  // Untagged episodes are loaded from this user's account but missing a childProfile —
-  // typically legacy cartoons created before per-child tagging existed.
-  const untaggedCount = episodes.filter((e) => !e.childProfile?.name).length;
 
   const saveSteerage = () => {
     setSavingSteerage(true);
@@ -460,27 +403,6 @@ function SelfImprovementPage() {
               {episodesError}
             </div>
           )}
-          {!episodesError && activeChild && untaggedCount > 0 && (
-            <div className="bg-amber-500/5 border-2 border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-soft">
-              <div className="text-sm text-foreground/85 leading-relaxed">
-                We found <span className="font-extrabold">{untaggedCount}</span> cartoon
-                {untaggedCount === 1 ? "" : "s"} on your account that {untaggedCount === 1 ? "isn't" : "aren't"} tagged
-                for any child yet. Tag {untaggedCount === 1 ? "it" : "them"} for{" "}
-                <span className="font-semibold">{activeChild.name}</span> so {activeChild.name}'s insights
-                and the reviewer's personalized loop reflect {untaggedCount === 1 ? "it" : "them"}.
-              </div>
-              <button
-                type="button"
-                onClick={() => tagAllUntagged(activeChild)}
-                disabled={tagging === "bulk"}
-                className="shrink-0 bg-amber-500 hover:bg-amber-500/95 text-white font-extrabold text-sm px-4 py-2.5 rounded-2xl transition active:scale-[0.99] disabled:opacity-75"
-              >
-                {tagging === "bulk"
-                  ? "Tagging…"
-                  : `Tag ${untaggedCount === 1 ? "it" : `all ${untaggedCount}`} for ${activeChild.name}`}
-              </button>
-            </div>
-          )}
 
           {/* Real score cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -599,7 +521,6 @@ function SelfImprovementPage() {
                 <ul className="space-y-2">
                   {recentEpisodes.map((ep) => {
                     const taggedName = ep.childProfile?.name ?? null;
-                    const isBusy = tagging === ep.id;
                     return (
                       <li
                         key={ep.id}
@@ -617,39 +538,14 @@ function SelfImprovementPage() {
                             {ep.review?.promptVersionUsed
                               ? ` · prompt ${ep.review.promptVersionUsed}`
                               : ""}
-                            {taggedName ? ` · tagged for ${taggedName}` : " · untagged"}
+                            {taggedName ? ` · for ${taggedName}` : ""}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {typeof ep.review?.score === "number" && (
-                            <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                              {ep.review.score}/10
-                            </span>
-                          )}
-                          {childProfiles.length > 0 && (
-                            <select
-                              aria-label="Tag this cartoon for a child"
-                              value={taggedName ?? ""}
-                              disabled={isBusy}
-                              onChange={(e) => {
-                                const target = childProfiles.find((p) => p.name === e.target.value);
-                                if (target && target.name !== taggedName) {
-                                  void retagEpisode(ep.id, target);
-                                }
-                              }}
-                              className="text-[11px] font-bold bg-card border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
-                            >
-                              <option value="" disabled>
-                                {isBusy ? "Tagging…" : "Tag for…"}
-                              </option>
-                              {childProfiles.map((p) => (
-                                <option key={p.name} value={p.name}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
+                        {typeof ep.review?.score === "number" && (
+                          <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
+                            {ep.review.score}/10
+                          </span>
+                        )}
                       </li>
                     );
                   })}
