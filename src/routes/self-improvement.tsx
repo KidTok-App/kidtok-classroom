@@ -260,9 +260,14 @@ function SelfImprovementPage() {
           reviewedEpisodes.length) * 10
       ) / 10
     : null;
-  const recentEpisodes = [...childEpisodes]
+  // Recent list: show the child's tagged cartoons first, then untagged ones
+  // (so the parent can fix mistagged history without leaving the page).
+  const recentEpisodes = [
+    ...childEpisodes,
+    ...(activeChild ? episodes.filter((e) => !e.childProfile?.name) : []),
+  ]
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
-    .slice(0, 4);
+    .slice(0, 6);
   const latestPromptChange = promptHistory.length > 0
     ? promptHistory[promptHistory.length - 1]
     : null;
@@ -270,8 +275,6 @@ function SelfImprovementPage() {
   // typically legacy cartoons created before per-child tagging existed.
   const untaggedEpisodes = episodes.filter((e) => !e.childProfile?.name);
   const untaggedCount = untaggedEpisodes.length;
-  // For recent-list reassign menu: cartoons tagged for a DIFFERENT child than active
-  const otherProfiles = childProfiles.filter((p) => p.name !== activeChild?.name);
 
   const saveSteerage = () => {
     setSavingSteerage(true);
