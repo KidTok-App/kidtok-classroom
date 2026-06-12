@@ -273,8 +273,7 @@ function SelfImprovementPage() {
     : null;
   // Untagged episodes are loaded from this user's account but missing a childProfile —
   // typically legacy cartoons created before per-child tagging existed.
-  const untaggedEpisodes = episodes.filter((e) => !e.childProfile?.name);
-  const untaggedCount = untaggedEpisodes.length;
+  const untaggedCount = episodes.filter((e) => !e.childProfile?.name).length;
 
   const saveSteerage = () => {
     setSavingSteerage(true);
