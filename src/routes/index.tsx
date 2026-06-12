@@ -545,10 +545,25 @@ function HomePage() {
 
       {/* Feature row */}
       <section className="mx-auto max-w-6xl px-4 pb-20">
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <FeatureCard icon={<Zap className="h-5 w-5" />} title="Ready fast" body="From topic to cartoon in just a few minutes — no editing required." />
           <FeatureCard icon={<Heart className="h-5 w-5" />} title="Kid‑friendly" body="Age‑appropriate vocabulary, bright art, and a warm narrator voice." />
           <FeatureCard icon={<Shield className="h-5 w-5" />} title="Parent‑approved" body="A reviewer agent checks every cartoon before it reaches the player." />
+          <Link
+            to="/self-improvement"
+            className="group block bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-rose-500/10 border-2 border-amber-500/40 rounded-3xl p-6 shadow-soft hover:shadow-medium hover:-translate-y-0.5 transition-all"
+          >
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 mb-3">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <h3 className="font-extrabold text-lg">Arize Phoenix loop</h3>
+              <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">Live</span>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Every run streams OpenTelemetry spans to <strong>Arize Phoenix</strong>. The QualityReviewer pulls them back via <strong>Phoenix MCP</strong> and upserts improved prompts. <span className="font-bold text-amber-700 dark:text-amber-300 group-hover:underline">Open dashboard →</span>
+            </p>
+          </Link>
         </div>
       </section>
     </div>
