@@ -640,7 +640,7 @@ function SelfImprovementPage() {
                   <History className="h-5 w-5 text-primary" /> Prompt Version History Timeline
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Template evolutions of <code>kidtok-scene-prompt</code> retrieved from Phoenix.
+                  Template evolutions of <code>{activeChild && historyScope === "child" ? `kidtok-scene-prompt--${activeChild.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` : "kidtok-scene-prompt"}</code> retrieved from Phoenix.
                 </p>
               </div>
 
