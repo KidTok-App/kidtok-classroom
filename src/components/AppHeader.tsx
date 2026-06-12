@@ -82,11 +82,8 @@ export function AppHeader() {
             <NavLink to="/">Create</NavLink>
             <NavLink to="/library">Library</NavLink>
             <NavLink to="/self-improvement">
-              <span className="inline-flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                <span className="hidden sm:inline">Arize Phoenix Loop</span>
-                <span className="sm:hidden">Phoenix</span>
-              </span>
+              <span className="hidden sm:inline">Self‑improvement</span>
+              <span className="sm:hidden">Insights</span>
             </NavLink>
             <NavLink to="/about">About</NavLink>
           </nav>
