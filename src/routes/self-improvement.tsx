@@ -458,12 +458,25 @@ function SelfImprovementPage() {
               {episodesError}
             </div>
           )}
-          {!episodesError && showUntaggedHint && (
-            <div className="bg-amber-500/5 border-2 border-amber-500/30 rounded-2xl p-4 text-sm text-foreground/85 leading-relaxed">
-              We found {untaggedCount} cartoon{untaggedCount === 1 ? "" : "s"} on your account but none
-              are tagged for <span className="font-semibold">{activeChild?.name}</span> yet. Make sure
-              {" "}<span className="font-semibold">{activeChild?.name}</span> is selected on the home page
-              before generating, so the reviewer can personalize future cartoons for them.
+          {!episodesError && activeChild && untaggedCount > 0 && (
+            <div className="bg-amber-500/5 border-2 border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-soft">
+              <div className="text-sm text-foreground/85 leading-relaxed">
+                We found <span className="font-extrabold">{untaggedCount}</span> cartoon
+                {untaggedCount === 1 ? "" : "s"} on your account that {untaggedCount === 1 ? "isn't" : "aren't"} tagged
+                for any child yet. Tag {untaggedCount === 1 ? "it" : "them"} for{" "}
+                <span className="font-semibold">{activeChild.name}</span> so {activeChild.name}'s insights
+                and the reviewer's personalized loop reflect {untaggedCount === 1 ? "it" : "them"}.
+              </div>
+              <button
+                type="button"
+                onClick={() => tagAllUntagged(activeChild)}
+                disabled={tagging === "bulk"}
+                className="shrink-0 bg-amber-500 hover:bg-amber-500/95 text-white font-extrabold text-sm px-4 py-2.5 rounded-2xl transition active:scale-[0.99] disabled:opacity-75"
+              >
+                {tagging === "bulk"
+                  ? "Tagging…"
+                  : `Tag ${untaggedCount === 1 ? "it" : `all ${untaggedCount}`} for ${activeChild.name}`}
+              </button>
             </div>
           )}
 
