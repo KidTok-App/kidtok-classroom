@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { isApiConfigured, listEpisodes, type Episode } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
