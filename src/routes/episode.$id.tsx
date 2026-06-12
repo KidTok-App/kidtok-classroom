@@ -252,6 +252,7 @@ interface PhoenixMcpDashboardProps {
 
 function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [steerInput, setSteerInput] = useState("");
   const [isIterating, setIsIterating] = useState(false);
   const [activeTab, setActiveTab] = useState<"visualizer" | "telemetry" | "evolution" | "terminal" | "flowchart">("visualizer");
@@ -324,9 +325,9 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
 
   // Load iteration chain from the database
   const { data: allEpisodes } = useQuery({
-    queryKey: ["episodes"],
+    queryKey: ["episodes", user?.id ?? "guest"],
     queryFn: listEpisodes,
-    enabled: isApiConfigured(),
+    enabled: isApiConfigured() && !!user,
   });
 
   const iterations = allEpisodes
