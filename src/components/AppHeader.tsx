@@ -219,8 +219,8 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <Link
       to={to}
-      className="px-3 py-2 rounded-full text-foreground/70 hover:text-foreground hover:bg-secondary transition-colors"
-      activeProps={{ className: "px-3 py-2 rounded-full bg-primary text-primary-foreground" }}
+      className="px-2 sm:px-3 py-2 rounded-full text-foreground/70 hover:text-foreground hover:bg-secondary transition-colors whitespace-nowrap text-[13px] sm:text-sm"
+      activeProps={{ className: "px-2 sm:px-3 py-2 rounded-full bg-primary text-primary-foreground whitespace-nowrap text-[13px] sm:text-sm" }}
       activeOptions={{ exact: to === "/" }}
     >
       {children}
