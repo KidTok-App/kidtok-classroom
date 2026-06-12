@@ -184,6 +184,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
           episodeId: input.episodeId,
           templateUsed: input.templateUsed,
           userSteerage: input.userSteerage,
+          childProfile: input.childProfile,
         },
         {
           degradedScenes,
@@ -194,7 +195,8 @@ Your notes MUST include a dedicated sentence assessment of child personalization
       );
       promptImproved = improveRes.success;
       if (promptImproved) {
-        const publishedNote = `Prompt mgmt: published an improved "${this.scenePromptName}" version for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
+        const childTag = input.childProfile?.name ? ` for ${input.childProfile.name}` : "";
+        const publishedNote = `Prompt mgmt: published an improved "${this.scenePromptName}" version${childTag} for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
         finalNotes += " " + publishedNote;
       }
     }
