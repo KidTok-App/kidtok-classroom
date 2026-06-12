@@ -31,10 +31,11 @@ export const Route = createFileRoute("/library")({
 });
 
 function LibraryPage() {
+  const { user, loading: authLoading } = useAuth();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["episodes"],
+    queryKey: ["episodes", user?.id ?? "guest"],
     queryFn: listEpisodes,
-    enabled: isApiConfigured(),
+    enabled: isApiConfigured() && !!user,
   });
 
   return (
@@ -42,7 +43,11 @@ function LibraryPage() {
       <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold">Cartoon library</h1>
-          <p className="text-muted-foreground mt-1">Every cartoon you've made, in one place.</p>
+          <p className="text-muted-foreground mt-1">
+            {user
+              ? `Every cartoon ${user.name?.split(" ")[0] ?? "you've"} made, in one place.`
+              : "Every cartoon you've made, in one place."}
+          </p>
         </div>
         <Link
           to="/"
@@ -59,20 +64,27 @@ function LibraryPage() {
         />
       )}
 
-      {isApiConfigured() && isLoading && <SkeletonGrid />}
+      {isApiConfigured() && !authLoading && !user && (
+        <EmptyState
+          title="Sign in to see your cartoons"
+          body="Your library is private to your account. Sign in from the top-right to view cartoons you've made."
+        />
+      )}
 
-      {isApiConfigured() && error && (
+      {isApiConfigured() && user && isLoading && <SkeletonGrid />}
+
+      {isApiConfigured() && user && error && (
         <EmptyState title="Couldn't load library" body={(error as Error).message} />
       )}
 
-      {isApiConfigured() && data && data.length === 0 && (
+      {isApiConfigured() && user && data && data.length === 0 && (
         <EmptyState
           title="No cartoons yet"
           body="Head back home and create your first one!"
         />
       )}
 
-      {isApiConfigured() && data && data.length > 0 && (
+      {isApiConfigured() && user && data && data.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {data.map((ep) => (
             <EpisodeCard key={ep.id} episode={ep} />
