@@ -111,6 +111,28 @@ flowchart TB
 3. After assembly, **QualityReviewerAgent** retrieves *this episode's* spans via MCP (`get-spans`), evaluates stage latencies, image retries, and caption/narration alignment, writes `review: { score, notes }` to Firestore, and — when it detects a scene-prompt weakness — publishes an improved template version via `upsert-prompt`.
 4. The **next episode's** ScenePlannerAgent picks up the improved version (logged with version ids; compare `review.promptVersionUsed` across episodes).
 
+---
+
+## 🌟 Premium V2 Features (Hackathon Upgrades)
+
+To deliver true product-market polish and maximize our scoring potential, we have implemented three high-impact premium features directly into the core user experience:
+
+### 1. 🧒 Child Profiles & Deep Personalization (Closed-Loop)
+Instead of generic age bands, parents can now create **Child Profiles** (e.g., *Zosia, age 5, interests: dinosaurs, volcanoes, and cookies, visual art style: crayon sketch*). This feeds directly into our multi-agent pipeline:
+* **ScriptAgent**: Reads the `childProfile` payload. It addresses the child directly by name (at least twice—as an onboarding hook and a joyful recap) and dynamically weaves their interests into the educational story (e.g., explaining volcanoes using dinosaur comparisons or cookie baking).
+* **ScenePlannerAgent**: Captures the favorite art style of the child (crayon sketch, claymation, retro cartoon, or watercolor) and overrides the `GLOBAL_CARTOON_STYLE` token dynamically so all downstream illustrations match their aesthetic preference.
+* **QualityReviewerAgent**: Evaluates how well the generated content aligned with the child's profile and scores the **Personalization Fit**, exporting these custom telemetry metrics back to Arize Phoenix.
+
+### 2. 📊 AI Self-Improvement Portal (`/self-improvement`)
+We moved our developer dashboard away from the home screen into a dedicated portal accessible from the profile avatar menu. It splits into two tailored views:
+* **👪 Parent Mode (Aesthetic & Emotional)**: Displays high-level clarity, safety, and pacing indicators (e.g., *98.4% Success Rate*) alongside an **Interactive AI Self-Correction Log** demonstrating how agent self-critique translates to cartoon refinements.
+* **💻 Developer Mode (Advanced Diagnostic)**: Displays raw average latencies, prompt retries, active safety filter rates, and hosts the **Active Prompt-Steering Panel** (which saves developer instructions to `localStorage` to guide future reviews). It also features a **Prompt Version History Timeline** with a native **Longest Common Subsequence (LCS)** word-by-word visual difference algorithm that beautifully highlights prompt additions in green and removals in red directly in the browser!
+
+### 3. 🎵 Synced Background Audio Bed (Lyria 3 Inspired)
+To elevate the audio polish to true broadcast-cartoon quality, we integrated a gentle, loopable playtime background melody. This audio bed is:
+* Hard-locked to an ultra-soft bed volume level (`0.08`) so it sits comfortably beneath the narrator's voice-over.
+* Synchronized perfectly with the primary voice-over's Play, Pause, Mute, and Scene Transition controls in the custom video player.
+
 ### Orchestration engine: ADK with a documented fallback
 
 The primary engine uses the official **Google Agent Development Kit for TypeScript** (`@google/adk` 1.2.0): each LLM-backed role is a named ADK `LlmAgent` definition (`script_agent`, `scene_planner_agent`, `safety_check_agent`, `prompt_sanitizer_agent`, `review_alignment_agent`, `review_prompt_improvement_agent`) executed through the ADK `InMemoryRunner` with Gemini served by Vertex (`GOOGLE_GENAI_USE_VERTEXAI=true`). The ClassroomOrchestrator remains the single coordinator — sub-agents never call each other.
