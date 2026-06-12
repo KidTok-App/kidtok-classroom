@@ -461,27 +461,47 @@ function HomePage() {
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               For age
+              {selectedChildIdx !== null && childProfiles[selectedChildIdx] && (
+                <span className="ml-2 normal-case tracking-normal text-muted-foreground/80">
+                  · locked to {childProfiles[selectedChildIdx].name}'s age ({childProfiles[selectedChildIdx].ageBand})
+                </span>
+              )}
             </p>
             <div className="flex gap-2">
-              {AGES.map((age) => (
-                <button
-                  key={age}
-                  type="button"
-                  onClick={() => {
-                    setAgeBand(age);
-                    setSelectedChildIdx(null); // Clear active child selection if custom age selected manually
-                  }}
-                  disabled={submitting}
-                  aria-pressed={ageBand === age}
-                  className={`h-14 w-14 rounded-2xl font-extrabold text-xl transition-all ${
-                    ageBand === age
-                      ? "btn-gradient scale-110"
-                      : "bg-card border-2 border-border text-foreground hover:border-primary"
-                  }`}
-                >
-                  {age}
-                </button>
-              ))}
+              {AGES.map((age) => {
+                const childLocked = selectedChildIdx !== null && childProfiles[selectedChildIdx] !== undefined;
+                const lockedAge = childLocked ? childProfiles[selectedChildIdx!].ageBand : null;
+                const isLockedOut = childLocked && age !== lockedAge;
+                return (
+                  <button
+                    key={age}
+                    type="button"
+                    onClick={() => {
+                      if (isLockedOut) {
+                        toast.info(`Age is locked to ${childProfiles[selectedChildIdx!].name} (${lockedAge}). Deselect the child profile to pick a different age.`);
+                        return;
+                      }
+                      setAgeBand(age);
+                      if (!childLocked) {
+                        setSelectedChildIdx(null); // Clear active child selection if custom age selected manually
+                      }
+                    }}
+                    disabled={submitting || isLockedOut}
+                    aria-pressed={ageBand === age}
+                    aria-disabled={isLockedOut}
+                    title={isLockedOut ? `Locked to ${childProfiles[selectedChildIdx!].name}'s age (${lockedAge})` : undefined}
+                    className={`h-14 w-14 rounded-2xl font-extrabold text-xl transition-all ${
+                      ageBand === age
+                        ? "btn-gradient scale-110"
+                        : isLockedOut
+                          ? "bg-muted/40 border-2 border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                          : "bg-card border-2 border-border text-foreground hover:border-primary"
+                    }`}
+                  >
+                    {age}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
