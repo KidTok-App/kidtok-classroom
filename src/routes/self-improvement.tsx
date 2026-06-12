@@ -266,10 +266,12 @@ function SelfImprovementPage() {
   const latestPromptChange = promptHistory.length > 0
     ? promptHistory[promptHistory.length - 1]
     : null;
-  // Show untagged-episodes hint when the user has episodes but none match the active child
-  const untaggedCount = activeChild ? episodes.length - childEpisodes.length : 0;
-  const showUntaggedHint =
-    !!activeChild && episodes.length > 0 && childEpisodes.length === 0;
+  // Untagged episodes are loaded from this user's account but missing a childProfile —
+  // typically legacy cartoons created before per-child tagging existed.
+  const untaggedEpisodes = episodes.filter((e) => !e.childProfile?.name);
+  const untaggedCount = untaggedEpisodes.length;
+  // For recent-list reassign menu: cartoons tagged for a DIFFERENT child than active
+  const otherProfiles = childProfiles.filter((p) => p.name !== activeChild?.name);
 
   const saveSteerage = () => {
     setSavingSteerage(true);
