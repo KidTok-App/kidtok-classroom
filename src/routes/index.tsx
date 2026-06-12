@@ -226,15 +226,6 @@ function HomePage() {
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border shadow-soft text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" /> Multi-agent learning studio
           </span>
-          <Link
-            to="/self-improvement"
-            className="group inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border border-amber-500/40 shadow-soft text-xs font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 hover:border-amber-500 transition"
-            title="See the live Arize Phoenix observability + MCP self-improvement loop"
-          >
-            <Activity className="h-3.5 w-3.5 animate-pulse" />
-            Wired with Arize Phoenix
-            <span className="hidden sm:inline text-[10px] font-bold opacity-80 group-hover:opacity-100">· See the loop →</span>
-          </Link>
         </div>
 
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.02] tracking-tight mb-5">
