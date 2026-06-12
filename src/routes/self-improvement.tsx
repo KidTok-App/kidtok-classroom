@@ -445,7 +445,16 @@ function SelfImprovementPage() {
                   </span>
                 </div>
                 <p className="text-sm text-foreground/90 leading-relaxed">
-                  {humanizePromptChange(latestPromptChange.changeSummary, activeChild?.name ?? null)}
+                  {(() => {
+                    const raw = latestPromptChange.changeSummary || "";
+                    const name = activeChild?.name;
+                    // If the reviewer's own summary already mentions this child, show it verbatim
+                    // (capitalized) so parents get the personalized signal directly.
+                    if (name && raw.toLowerCase().includes(name.toLowerCase())) {
+                      return raw.charAt(0).toUpperCase() + raw.slice(1);
+                    }
+                    return humanizePromptChange(raw, name ?? null);
+                  })()}
                 </p>
               </div>
             )}
