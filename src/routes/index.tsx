@@ -73,45 +73,61 @@ function HomePage() {
   
   const isLocal = typeof window !== "undefined" && 
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  const isMockUser = user?.email?.endsWith("@kidtokai.com") || user?.email?.endsWith("@kidtok.co");
+  const isMockUser = !!(user?.email?.endsWith("@kidtokai.com") || user?.email?.endsWith("@kidtok.co"));
   const canUseOmni = user?.email === OMNI_ALLOWED_EMAIL || isLocal || isMockUser;
 
-  // Load Child Profiles on mount
+  // Per-user storage keys so profiles don't bleed across accounts
+  const storageScope = user?.id ?? "guest";
+  const profilesKey = `kidtok_child_profiles:${storageScope}`;
+  const lastSelectedKey = `kidtok_last_child_profile:${storageScope}`;
+
+  // Load Child Profiles whenever the active user changes
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("kidtok_child_profiles");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setChildProfiles(parsed);
-            
-            const lastSelected = localStorage.getItem("kidtok_last_child_profile");
-            const idx = parsed.findIndex((p: any) => p.name === lastSelected);
-            if (idx !== -1) {
-              setSelectedChildIdx(idx);
-              setAgeBand(parsed[idx].ageBand);
-            } else {
-              setSelectedChildIdx(0);
-              setAgeBand(parsed[0].ageBand);
-            }
+    if (typeof window === "undefined") return;
+
+    const stored = localStorage.getItem(profilesKey);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setChildProfiles(parsed);
+          if (parsed.length === 0) {
+            setSelectedChildIdx(null);
             return;
           }
-        } catch (e) {
-          console.error("Failed to parse child profiles", e);
+          const lastSelected = localStorage.getItem(lastSelectedKey);
+          const idx = parsed.findIndex((p: any) => p.name === lastSelected);
+          if (idx !== -1) {
+            setSelectedChildIdx(idx);
+            setAgeBand(parsed[idx].ageBand);
+          } else {
+            setSelectedChildIdx(0);
+            setAgeBand(parsed[0].ageBand);
+          }
+          return;
         }
+      } catch (e) {
+        console.error("Failed to parse child profiles", e);
       }
-      // Seeding Default Profile
+    }
+
+    // No stored profiles yet for this account.
+    // Seed the Zosia demo profile ONLY for the dev/demo accounts so judges
+    // see a populated example; real users start with an empty carousel.
+    if (isMockUser) {
       setChildProfiles(DEFAULT_PROFILES);
       setSelectedChildIdx(0);
       setAgeBand(DEFAULT_PROFILES[0].ageBand);
+    } else {
+      setChildProfiles([]);
+      setSelectedChildIdx(null);
     }
-  }, []);
+  }, [profilesKey, lastSelectedKey, isMockUser]);
 
   const saveProfilesToStorage = (profiles: ChildProfile[]) => {
     setChildProfiles(profiles);
     if (typeof window !== "undefined") {
-      localStorage.setItem("kidtok_child_profiles", JSON.stringify(profiles));
+      localStorage.setItem(profilesKey, JSON.stringify(profiles));
     }
   };
 
@@ -121,7 +137,7 @@ function HomePage() {
     if (child) {
       setAgeBand(child.ageBand);
       if (typeof window !== "undefined") {
-        localStorage.setItem("kidtok_last_child_profile", child.name);
+        localStorage.setItem(lastSelectedKey, child.name);
       }
     }
   };
@@ -147,7 +163,10 @@ function HomePage() {
     saveProfilesToStorage(updated);
     setSelectedChildIdx(updated.length - 1);
     setAgeBand(newAge);
-    
+    if (typeof window !== "undefined") {
+      localStorage.setItem(lastSelectedKey, newProfile.name);
+    }
+
     // Reset Form
     setNewName("");
     setNewAge(5);
@@ -161,15 +180,21 @@ function HomePage() {
     e.stopPropagation();
     const childName = childProfiles[idx]?.name;
     const updated = childProfiles.filter((_, i) => i !== idx);
-    
+
+    saveProfilesToStorage(updated);
+
     if (updated.length === 0) {
-      saveProfilesToStorage(DEFAULT_PROFILES);
-      setSelectedChildIdx(0);
-      setAgeBand(DEFAULT_PROFILES[0].ageBand);
+      setSelectedChildIdx(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(lastSelectedKey);
+      }
     } else {
-      saveProfilesToStorage(updated);
+      // Keep selection sensible: pick the first remaining profile
       setSelectedChildIdx(0);
       setAgeBand(updated[0].ageBand);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(lastSelectedKey, updated[0].name);
+      }
     }
     toast.success(`Removed ${childName}'s profile.`);
   };
@@ -329,6 +354,22 @@ function HomePage() {
                 </button>
               </div>
             </div>
+          ) : childProfiles.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="w-full text-left p-5 rounded-2xl border-2 border-dashed border-border bg-card/50 hover:border-primary/50 hover:bg-card transition-all flex items-center gap-3 cursor-pointer"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+                <Plus className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-extrabold text-sm text-foreground">No child profile yet</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Add your child to personalize cartoons by name, age, interests and art style. You can still create cartoons without one.
+                </p>
+              </div>
+            </button>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
               {childProfiles.map((p, idx) => (
