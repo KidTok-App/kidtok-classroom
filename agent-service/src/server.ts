@@ -12,6 +12,7 @@ import express, { type Express, type Request } from "express";
 import { OAuth2Client } from "google-auth-library";
 import type { EpisodeStore, PhoenixMcp } from "./clients/interfaces.js";
 import type { ServiceConfig } from "./config.js";
+import { childScopedPromptName } from "./lib/promptScoping.js";
 import { toPublicEpisode, type EpisodeDoc } from "./types.js";
 
 export interface ServerDeps {
@@ -240,8 +241,24 @@ export function createServer(deps: ServerDeps): Express {
         res.status(401).json({ error: "Authentication required" });
         return;
       }
-      const history = await deps.phoenix.getPromptHistory("kidtok-scene-prompt");
-      res.json(history);
+      const baseName = deps.cfg.scenePromptName;
+      const rawChild = typeof req.query.child === "string" ? req.query.child.trim() : "";
+      const child = rawChild.slice(0, 60);
+      let scope: "child" | "global" = "global";
+      let history = await deps.phoenix.getPromptHistory(baseName);
+      if (child) {
+        const scopedName = childScopedPromptName(baseName, child);
+        if (scopedName !== baseName) {
+          const scoped = await deps.phoenix.getPromptHistory(scopedName);
+          if (scoped.length > 0) {
+            // Per-child lineage starts from the shared baseline, then adds
+            // the child's own reviewer-published versions on top.
+            history = [...history, ...scoped];
+            scope = "child";
+          }
+        }
+      }
+      res.json({ history, scope });
     } catch (err) {
       console.error("[api] GET /prompts/history failed:", err);
       res.status(500).json({ error: "failed to load prompt history" });

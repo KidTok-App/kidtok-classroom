@@ -235,7 +235,7 @@ export class PhoenixMcpClient implements PhoenixMcp {
     ]);
     const parsed = tryParseJson(text) as Record<string, unknown> | null;
     const rawVersionId = extractVersionId(parsed);
-    const versionId = rawVersionId || `v${(this.historyList.get(args.name)?.length ?? 3) + 1}`;
+    const versionId = rawVersionId || `v${(this.historyList.get(args.name)?.length ?? 0) + 1}`;
 
     const item: PromptHistoryItem = {
       versionId,

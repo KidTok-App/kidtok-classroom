@@ -106,11 +106,27 @@ export async function createEpisode(input: {
   return handle(res);
 }
 
-export async function getPromptHistory(): Promise<PromptHistoryItem[]> {
-  const res = await fetch(`${BASE}/prompts/history`, {
+export interface PromptHistoryResult {
+  history: PromptHistoryItem[];
+  /** "child" when child-specific versions exist; "global" = shared baseline. */
+  scope: "child" | "global";
+}
+
+export async function getPromptHistory(child?: string): Promise<PromptHistoryResult> {
+  const qs = child ? `?child=${encodeURIComponent(child)}` : "";
+  const res = await fetch(`${BASE}/prompts/history${qs}`, {
     headers: getAuthHeaders(),
   });
-  return handle(res);
+  const data = await handle<unknown>(res);
+  // Tolerate the legacy array shape from an older backend deploy.
+  if (Array.isArray(data)) {
+    return { history: data as PromptHistoryItem[], scope: "global" };
+  }
+  const obj = data as { history?: PromptHistoryItem[]; scope?: string };
+  return {
+    history: Array.isArray(obj.history) ? obj.history : [],
+    scope: obj.scope === "child" ? "child" : "global",
+  };
 }
 
 export async function getEpisode(id: string): Promise<Episode> {

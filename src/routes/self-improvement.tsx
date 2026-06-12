@@ -81,25 +81,26 @@ interface ChildSummary {
   artStyle: string;
 }
 
-function loadActiveChild(userId: string | undefined): ChildSummary | null {
-  if (typeof window === "undefined") return null;
+function loadChildProfiles(userId: string | undefined): { profiles: ChildSummary[]; lastName: string | null } {
+  if (typeof window === "undefined") return { profiles: [], lastName: null };
   const scope = userId ?? "guest";
   try {
     const raw = localStorage.getItem(`kidtok_child_profiles:${scope}`);
-    if (!raw) return null;
+    if (!raw) return { profiles: [], lastName: null };
     const list = JSON.parse(raw);
-    if (!Array.isArray(list) || list.length === 0) return null;
+    if (!Array.isArray(list)) return { profiles: [], lastName: null };
+    const profiles: ChildSummary[] = list
+      .filter((p: any) => p?.name)
+      .map((p: any) => ({
+        name: String(p.name),
+        ageBand: Number(p.ageBand ?? 6),
+        interests: String(p.interests ?? ""),
+        artStyle: String(p.artStyle ?? "crayon sketch"),
+      }));
     const lastName = localStorage.getItem(`kidtok_last_child_profile:${scope}`);
-    const found = list.find((p: any) => p?.name === lastName) ?? list[0];
-    if (!found?.name) return null;
-    return {
-      name: String(found.name),
-      ageBand: Number(found.ageBand ?? 6),
-      interests: String(found.interests ?? ""),
-      artStyle: String(found.artStyle ?? "crayon sketch"),
-    };
+    return { profiles, lastName };
   } catch {
-    return null;
+    return { profiles: [], lastName: null };
   }
 }
 
@@ -130,6 +131,7 @@ function SelfImprovementPage() {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState<"parent" | "developer">("parent");
   const [promptHistory, setPromptHistory] = useState<PromptHistoryItem[]>([]);
+  const [historyScope, setHistoryScope] = useState<"child" | "global">("global");
   const [loadingPrompts, setLoadingPromptHistory] = useState(true);
   const [selectedVersion, setSelectedVersion] = useState<number>(2);
   const [userSteerage, setUserSteerage] = useState("");
@@ -137,26 +139,19 @@ function SelfImprovementPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(true);
   const [episodesError, setEpisodesError] = useState<string | null>(null);
+  const [childProfiles, setChildProfiles] = useState<ChildSummary[]>([]);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
 
-  // Load user steering, prompt history, episodes, and active child
+  // Load user steering, child profiles, and episodes
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("kidtok_user_steerage") || "";
       setUserSteerage(stored);
     }
-    setActiveChild(loadActiveChild(user?.id));
+    const { profiles, lastName } = loadChildProfiles(user?.id);
+    setChildProfiles(profiles);
+    setActiveChild(profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null);
 
-    async function loadHistory() {
-      try {
-        const history = await getPromptHistory();
-        setPromptHistory(history);
-      } catch (err) {
-        console.error("Error fetching prompt history:", err);
-      } finally {
-        setLoadingPromptHistory(false);
-      }
-    }
     async function loadEpisodes() {
       try {
         const list = await listEpisodes();
@@ -174,9 +169,30 @@ function SelfImprovementPage() {
         setLoadingEpisodes(false);
       }
     }
-    void loadHistory();
     void loadEpisodes();
   }, [user?.id]);
+
+  // (Re)load prompt history scoped to the selected child
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingPromptHistory(true);
+    getPromptHistory(activeChild?.name)
+      .then((res) => {
+        if (cancelled) return;
+        setPromptHistory(res.history);
+        setHistoryScope(res.scope);
+        setSelectedVersion(Math.max(1, res.history.length - 1));
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("Error fetching prompt history:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPromptHistory(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChild?.name]);
 
   // Real, parent-friendly insights derived from this user's episodes
   const normalizedActiveName = activeChild?.name.trim().toLowerCase() ?? null;
@@ -322,6 +338,40 @@ function SelfImprovementPage() {
         </div>
       </div>
 
+      {/* Child switcher — scopes insights + prompt history to one child */}
+      {childProfiles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mr-1">
+            Insights for:
+          </span>
+          {childProfiles.map((p) => (
+            <button
+              key={p.name}
+              type="button"
+              onClick={() => setActiveChild(p)}
+              className={`px-3.5 py-2 rounded-full text-sm font-extrabold border-2 transition-all ${
+                activeChild?.name === p.name
+                  ? "bg-primary text-primary-foreground border-primary shadow-soft scale-[1.03]"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-primary/40"
+              }`}
+            >
+              🧒 {p.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setActiveChild(null)}
+            className={`px-3.5 py-2 rounded-full text-sm font-extrabold border-2 transition-all ${
+              activeChild === null
+                ? "bg-primary text-primary-foreground border-primary shadow-soft scale-[1.03]"
+                : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-primary/40"
+            }`}
+          >
+            ✨ All cartoons
+          </button>
+        </div>
+      )}
+
       {viewMode === "parent" ? (
         /* PARENT-FRIENDLY VIEW — real data only, derived from this user's episodes */
         <div className="space-y-8 animate-in fade-in duration-300">
@@ -426,6 +476,16 @@ function SelfImprovementPage() {
                 differently for {activeChild?.name ?? "your child"}.
               </p>
             </div>
+
+            {activeChild && historyScope === "global" && !loadingPrompts && (
+              <div className="bg-sky-500/5 border border-sky-500/25 rounded-2xl p-3.5 text-xs text-foreground/85 leading-relaxed">
+                No <span className="font-semibold">{activeChild.name}</span>-specific tuning yet — you're
+                seeing the shared baseline. Generate a cartoon with{" "}
+                <span className="font-semibold">{activeChild.name}</span> selected and the reviewer will
+                start a personal improvement loop just for them.
+              </div>
+            )}
+
 
             {loadingPrompts ? (
               <p className="text-sm text-muted-foreground">Loading the latest improvements…</p>
@@ -580,7 +640,7 @@ function SelfImprovementPage() {
                   <History className="h-5 w-5 text-primary" /> Prompt Version History Timeline
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Template evolutions of <code>kidtok-scene-prompt</code> retrieved from Phoenix.
+                  Template evolutions of <code>{activeChild && historyScope === "child" ? `kidtok-scene-prompt--${activeChild.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` : "kidtok-scene-prompt"}</code> retrieved from Phoenix.
                 </p>
               </div>
 

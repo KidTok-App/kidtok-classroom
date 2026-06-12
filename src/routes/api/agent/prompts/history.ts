@@ -15,8 +15,10 @@ export const Route = createFileRoute("/api/agent/prompts/history")({
         try {
           const headers: HeadersInit = {};
           if (authHeader) headers["Authorization"] = authHeader;
+          // Forward the query string (e.g. ?child=John) to the agent backend.
+          const search = new URL(request.url).search;
           const upstream = await fetch(
-            `${base.replace(/\/$/, "")}/prompts/history`,
+            `${base.replace(/\/$/, "")}/prompts/history${search}`,
             { headers }
           );
           const body = await upstream.arrayBuffer();
