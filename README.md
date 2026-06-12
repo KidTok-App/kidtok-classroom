@@ -4,7 +4,7 @@
 
 KidTok Classroom turns a parent's request like *"why do volcanoes erupt"* into a five-scene illustrated, narrated mini-episode for kids ages 5–8. A React frontend polls a REST API while a central **ClassroomOrchestrator** drives six specialized sub-agents through scripting, scene planning, image generation, narration, assembly, and an automated quality review that closes the loop by improving its own prompts.
 
-**Runtime mandate:** the shipped backend uses **only Google services** (Gemini via Vertex AI, Cloud Text-to-Speech, Firestore, Cloud Storage) **plus Arize Phoenix** (OpenInference tracing + MCP server) — nothing else.
+**Runtime mandate:** the shipped backend uses **Google services** (Gemini via Vertex AI, Cloud Text-to-Speech, Firestore, Cloud Storage) **plus Arize Phoenix** (OpenInference tracing + MCP server).
 
 ---
 
