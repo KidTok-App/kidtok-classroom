@@ -252,6 +252,7 @@ interface PhoenixMcpDashboardProps {
 
 function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [steerInput, setSteerInput] = useState("");
   const [isIterating, setIsIterating] = useState(false);
   const [activeTab, setActiveTab] = useState<"visualizer" | "telemetry" | "evolution" | "terminal" | "flowchart">("visualizer");
