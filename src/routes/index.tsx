@@ -354,6 +354,22 @@ function HomePage() {
                 </button>
               </div>
             </div>
+          ) : childProfiles.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="w-full text-left p-5 rounded-2xl border-2 border-dashed border-border bg-card/50 hover:border-primary/50 hover:bg-card transition-all flex items-center gap-3 cursor-pointer"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+                <Plus className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-extrabold text-sm text-foreground">No child profile yet</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Add your child to personalize cartoons by name, age, interests and art style. You can still create cartoons without one.
+                </p>
+              </div>
+            </button>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
               {childProfiles.map((p, idx) => (
