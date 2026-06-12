@@ -17,7 +17,7 @@ import {
   TrendingUp,
   LineChart
 } from "lucide-react";
-import { getPromptHistory, PromptHistoryItem, listEpisodes, Episode } from "@/lib/agentApi";
+import { getPromptHistory, PromptHistoryItem, listEpisodes, Episode, updateEpisodeChild, ChildProfile } from "@/lib/agentApi";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/self-improvement")({
