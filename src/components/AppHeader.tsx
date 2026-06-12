@@ -63,22 +63,22 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-md bg-background/80 border-b border-border/60">
-      <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between gap-3">
-        <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="KidTok Classroom home">
+      <div className="mx-auto max-w-6xl px-3 sm:px-4 h-16 flex items-center justify-between gap-2 sm:gap-3">
+        <Link to="/" className="flex items-center gap-2 shrink-0 min-w-0" aria-label="KidTok Classroom home">
           <img
             src="/kidtok-logo.webp"
             alt="KidTok"
             width={120}
             height={36}
-            className="h-9 w-auto"
+            className="h-8 sm:h-9 w-auto"
           />
           <span className="hidden sm:inline-flex items-center rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wider px-2 py-0.5">
             Classroom
           </span>
         </Link>
-        
-        <div className="flex items-center gap-6">
-          <nav className="flex items-center gap-1 text-sm font-semibold">
+
+        <div className="flex items-center gap-1.5 sm:gap-6 shrink-0 min-w-0">
+          <nav className="flex items-center gap-0.5 sm:gap-1 text-sm font-semibold min-w-0">
             <NavLink to="/">Create</NavLink>
             <NavLink to="/library">Library</NavLink>
             <NavLink to="/about">About</NavLink>
@@ -88,10 +88,11 @@ export function AppHeader() {
 
           {/* User Auth Controls */}
           {user ? (
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 rounded-full hover:bg-secondary p-1 transition cursor-pointer"
+                aria-label={`Account menu for ${user.name}`}
               >
                 <Avatar className="h-8 w-8 border border-border">
                   <AvatarImage src={user.picture} alt={user.name} />
@@ -135,9 +136,11 @@ export function AppHeader() {
           ) : (
             <button
               onClick={() => setDialogOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 text-xs font-extrabold px-3.5 py-2 rounded-full cursor-pointer"
+              aria-label="Sign in"
+              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 text-xs font-extrabold px-2.5 sm:px-3.5 py-2 rounded-full cursor-pointer shrink-0"
             >
-              <LogIn className="h-3.5 w-3.5" /> Sign In
+              <LogIn className="h-3.5 w-3.5 shrink-0" />
+              <span>Sign In</span>
             </button>
           )}
         </div>
@@ -215,8 +218,8 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <Link
       to={to}
-      className="px-3 py-2 rounded-full text-foreground/70 hover:text-foreground hover:bg-secondary transition-colors"
-      activeProps={{ className: "px-3 py-2 rounded-full bg-primary text-primary-foreground" }}
+      className="px-2 sm:px-3 py-2 rounded-full text-foreground/70 hover:text-foreground hover:bg-secondary transition-colors whitespace-nowrap text-[13px] sm:text-sm"
+      activeProps={{ className: "px-2 sm:px-3 py-2 rounded-full bg-primary text-primary-foreground whitespace-nowrap text-[13px] sm:text-sm" }}
       activeOptions={{ exact: to === "/" }}
     >
       {children}
