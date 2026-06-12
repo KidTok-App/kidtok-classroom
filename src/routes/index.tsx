@@ -264,157 +264,6 @@ function HomePage() {
           classroom in minutes.
         </p>
 
-        {/* Child Profile Carousel Section */}
-        <div className="max-w-2xl mx-auto mb-8 space-y-4 text-left">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Baby className="h-4.5 w-4.5 text-primary" /> Personalized Child Profiles
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="text-xs font-extrabold text-primary hover:text-primary/80 flex items-center gap-1 transition"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Child Profile
-            </button>
-          </div>
-
-          {showAddForm ? (
-            <div className="bg-card border-2 border-primary/20 rounded-3xl p-5 space-y-4 shadow-medium animate-in fade-in zoom-in duration-200">
-              <h4 className="font-extrabold text-sm text-foreground flex items-center gap-1.5">
-                <Smile className="h-4 w-4 text-primary" /> Create New Profile
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Child's Name</label>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Zosia"
-                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Age</label>
-                  <select
-                    value={newAge}
-                    onChange={(e) => setNewAge(Number(e.target.value))}
-                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition font-bold text-foreground"
-                  >
-                    {[5, 6, 7, 8].map(age => (
-                      <option key={age} value={age}>Age {age}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Interests (influence cartoons!)</label>
-                  <input
-                    type="text"
-                    value={newInterests}
-                    onChange={(e) => setNewInterests(e.target.value)}
-                    placeholder="e.g. volcanoes, dinosaurs, baking"
-                    className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition"
-                  />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Favorite Art Style</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {["crayon sketch", "claymation", "retro cartoon", "watercolor"].map(style => (
-                      <button
-                        key={style}
-                        type="button"
-                        onClick={() => setNewArtStyle(style)}
-                        className={`py-2 rounded-xl text-xs font-bold border transition capitalize ${
-                          newArtStyle === style
-                            ? "bg-primary/10 border-primary text-primary shadow-soft"
-                            : "bg-background border-border text-muted-foreground hover:border-primary/50"
-                        }`}
-                      >
-                        {style}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2.5 justify-end pt-2 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 text-xs font-bold rounded-xl border border-border bg-background text-muted-foreground hover:bg-secondary transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddChild}
-                  className="px-4 py-2 text-xs font-extrabold rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition shadow-soft"
-                >
-                  Save Profile
-                </button>
-              </div>
-            </div>
-          ) : childProfiles.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="w-full text-left p-5 rounded-2xl border-2 border-dashed border-border bg-card/50 hover:border-primary/50 hover:bg-card transition-all flex items-center gap-3 cursor-pointer"
-            >
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
-                <Plus className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="font-extrabold text-sm text-foreground">No child profile yet</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Add your child to personalize cartoons by name, age, interests and art style. You can still create cartoons without one.
-                </p>
-              </div>
-            </button>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
-              {childProfiles.map((p, idx) => (
-                <button
-                  key={p.name}
-                  type="button"
-                  onClick={() => selectChild(idx)}
-                  className={`relative text-left shrink-0 w-52 p-4 rounded-2xl border-2 cursor-pointer snap-start transition-all shadow-soft group ${
-                    selectedChildIdx === idx
-                      ? "border-primary bg-primary/5 shadow-medium scale-[1.01]"
-                      : "border-border bg-card hover:border-primary/45"
-                  }`}
-                >
-                  <span
-                    onClick={(e) => handleDeleteChild(idx, e)}
-                    className="absolute top-2 right-2 text-muted-foreground/30 hover:text-destructive p-1 rounded-lg transition-colors z-10"
-                    title={`Delete profile for ${p.name}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-xl">🧒</span>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-foreground truncate max-w-[110px]">{p.name}</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground">Age {p.ageBand}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">
-                      💖 <span className="font-semibold text-foreground/80">{p.interests}</span>
-                    </p>
-                    <p className="text-[10px] text-muted-foreground leading-snug">
-                      🎨 <span className="font-semibold text-foreground/80 capitalize">{p.artStyle}</span>
-                    </p>
-                  </div>
-                  {selectedChildIdx === idx && (
-                    <span className="absolute bottom-2.5 right-2.5 bg-primary/10 text-primary text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                      Selected
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         <form onSubmit={onSubmit} className="space-y-7 max-w-2xl mx-auto">
           <div className="relative">
@@ -428,6 +277,159 @@ function HomePage() {
               disabled={submitting}
             />
           </div>
+
+          {/* Child Profile Carousel Section */}
+          <div className="space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Baby className="h-4.5 w-4.5 text-primary" /> Personalized Child Profiles
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="text-xs font-extrabold text-primary hover:text-primary/80 flex items-center gap-1 transition"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Child Profile
+              </button>
+            </div>
+
+            {showAddForm ? (
+              <div className="bg-card border-2 border-primary/20 rounded-3xl p-5 space-y-4 shadow-medium animate-in fade-in zoom-in duration-200">
+                <h4 className="font-extrabold text-sm text-foreground flex items-center gap-1.5">
+                  <Smile className="h-4 w-4 text-primary" /> Create New Profile
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground">Child's Name</label>
+                    <input
+                      type="text"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="e.g. Zosia"
+                      className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground">Age</label>
+                    <select
+                      value={newAge}
+                      onChange={(e) => setNewAge(Number(e.target.value))}
+                      className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition font-bold text-foreground"
+                    >
+                      {[5, 6, 7, 8].map(age => (
+                        <option key={age} value={age}>Age {age}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground">Interests (influence cartoons!)</label>
+                    <input
+                      type="text"
+                      value={newInterests}
+                      onChange={(e) => setNewInterests(e.target.value)}
+                      placeholder="e.g. volcanoes, dinosaurs, baking"
+                      className="w-full text-xs p-2.5 rounded-xl bg-background border border-border focus:border-primary transition"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground">Favorite Art Style</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {["crayon sketch", "claymation", "retro cartoon", "watercolor"].map(style => (
+                        <button
+                          key={style}
+                          type="button"
+                          onClick={() => setNewArtStyle(style)}
+                          className={`py-2 rounded-xl text-xs font-bold border transition capitalize ${
+                            newArtStyle === style
+                              ? "bg-primary/10 border-primary text-primary shadow-soft"
+                              : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {style}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2.5 justify-end pt-2 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddForm(false)}
+                    className="px-4 py-2 text-xs font-bold rounded-xl border border-border bg-background text-muted-foreground hover:bg-secondary transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddChild}
+                    className="px-4 py-2 text-xs font-extrabold rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition shadow-soft"
+                  >
+                    Save Profile
+                  </button>
+                </div>
+              </div>
+            ) : childProfiles.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowAddForm(true)}
+                className="w-full text-left p-5 rounded-2xl border-2 border-dashed border-border bg-card/50 hover:border-primary/50 hover:bg-card transition-all flex items-center gap-3 cursor-pointer"
+              >
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+                  <Plus className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-extrabold text-sm text-foreground">No child profile yet</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Add your child to personalize cartoons by name, age, interests and art style. You can still create cartoons without one.
+                  </p>
+                </div>
+              </button>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
+                {childProfiles.map((p, idx) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => selectChild(idx)}
+                    className={`relative text-left shrink-0 w-52 p-4 rounded-2xl border-2 cursor-pointer snap-start transition-all shadow-soft group ${
+                      selectedChildIdx === idx
+                        ? "border-primary bg-primary/5 shadow-medium scale-[1.01]"
+                        : "border-border bg-card hover:border-primary/45"
+                    }`}
+                  >
+                    <span
+                      onClick={(e) => handleDeleteChild(idx, e)}
+                      className="absolute top-2 right-2 text-muted-foreground/30 hover:text-destructive p-1 rounded-lg transition-colors z-10"
+                      title={`Delete profile for ${p.name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xl">🧒</span>
+                      <div>
+                        <h4 className="font-extrabold text-sm text-foreground truncate max-w-[110px]">{p.name}</h4>
+                        <p className="text-[10px] font-bold text-muted-foreground">Age {p.ageBand}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">
+                        💖 <span className="font-semibold text-foreground/80">{p.interests}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground leading-snug">
+                        🎨 <span className="font-semibold text-foreground/80 capitalize">{p.artStyle}</span>
+                      </p>
+                    </div>
+                    {selectedChildIdx === idx && (
+                      <span className="absolute bottom-2.5 right-2.5 bg-primary/10 text-primary text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                        Selected
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
 
           {/* Mode Switch Cards */}
           <div className="flex flex-col items-center gap-3">
