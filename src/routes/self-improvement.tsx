@@ -310,96 +310,159 @@ function SelfImprovementPage() {
       </div>
 
       {viewMode === "parent" ? (
-        /* PARENT-FRIENDLY VIEW */
+        /* PARENT-FRIENDLY VIEW — real data only, derived from this user's episodes */
         <div className="space-y-8 animate-in fade-in duration-300">
-          
-          {/* Friendly Score Cards */}
+
+          {/* Active child banner */}
+          <div className="bg-card border-2 border-border rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 shadow-soft">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🧒</span>
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                  Insights for
+                </p>
+                <h2 className="text-xl font-extrabold">
+                  {activeChild ? `${activeChild.name} (age ${activeChild.ageBand})` : "all cartoons"}
+                </h2>
+                {activeChild && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Loves <span className="font-semibold text-foreground/80">{activeChild.interests || "anything fun"}</span>
+                    {" · "}art style: <span className="font-semibold text-foreground/80 capitalize">{activeChild.artStyle}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            {!activeChild && (
+              <p className="text-xs text-muted-foreground sm:ml-auto sm:max-w-sm leading-relaxed">
+                Pick a child profile on the home page to see how cartoons are evolving for them.
+              </p>
+            )}
+          </div>
+
+          {/* Real score cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-card border-2 border-border rounded-3xl p-6 relative overflow-hidden shadow-soft">
+            <div className="bg-card border-2 border-border rounded-3xl p-6 shadow-soft">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 mb-4">
                 <CheckCircle className="h-6 w-6" />
               </div>
-              <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Episode Success Rate</p>
-              <h3 className="text-4xl font-extrabold mt-1">98.4%</h3>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Cartoons made</p>
+              <h3 className="text-4xl font-extrabold mt-1">
+                {loadingEpisodes ? "…" : totalForChild}
+              </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
-                Cartoons completely vetted, validated, and cleared for kid playback.
+                {totalForChild === 0
+                  ? "Make a cartoon on the home page — insights appear here as soon as the first one finishes."
+                  : `${readyEpisodes.length} ready to watch${failedEpisodes.length > 0 ? `, ${failedEpisodes.length} retried` : ""}.`}
               </p>
             </div>
 
-            <div className="bg-card border-2 border-border rounded-3xl p-6 relative overflow-hidden shadow-soft">
+            <div className="bg-card border-2 border-border rounded-3xl p-6 shadow-soft">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
                 <Sparkles className="h-6 w-6" />
               </div>
-              <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Clarity & Pacing</p>
-              <h3 className="text-4xl font-extrabold text-gradient-primary mt-1">Excellent</h3>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Reviewer score</p>
+              <h3 className="text-4xl font-extrabold text-gradient-primary mt-1">
+                {avgScore !== null ? `${avgScore}/10` : "—"}
+              </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
-                Narrator speed and image complexity matched perfectly to early ages.
+                {avgScore === null
+                  ? "Our reviewer agent rates each finished cartoon. Scores show up after the first review."
+                  : `Average across ${reviewedEpisodes.length} reviewed cartoon${reviewedEpisodes.length === 1 ? "" : "s"} for ${activeChild?.name ?? "your account"}.`}
               </p>
             </div>
 
-            <div className="bg-card border-2 border-border rounded-3xl p-6 relative overflow-hidden shadow-soft">
+            <div className="bg-card border-2 border-border rounded-3xl p-6 shadow-soft">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10 text-accent mb-4">
                 <Shield className="h-6 w-6" />
               </div>
-              <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Safety Guardrails</p>
-              <h3 className="text-4xl font-extrabold text-accent mt-1">100% Active</h3>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Made it to the player</p>
+              <h3 className="text-4xl font-extrabold text-accent mt-1">
+                {successRate !== null ? `${successRate}%` : "—"}
+              </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
-                Continuous double-check agents filtered and blocked offensive imagery.
+                {successRate === null
+                  ? "How often cartoons pass every safety and quality check before reaching your child."
+                  : "Share of cartoons that passed every safety and quality check."}
               </p>
             </div>
           </div>
 
-          {/* Interactive AI Self-Correction Logs */}
-          <div className="bg-card border-2 border-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-medium">
+          {/* What's evolving for your child — translated from real prompt history */}
+          <div className="bg-card border-2 border-border rounded-3xl p-6 sm:p-8 space-y-5 shadow-medium">
             <div>
               <h2 className="text-2xl font-extrabold flex items-center gap-2">
-                <TrendingUp className="h-5.5 w-5.5 text-primary" /> Teacher Feedback & AI Learning Loop
+                <TrendingUp className="h-5 w-5 text-primary" /> What's evolving next
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                See how our Multi-Agent Team adapts to feedback to make every cartoon more engaging.
+                Each finished cartoon teaches our reviewer something. Here's what the next ones will do
+                differently for {activeChild?.name ?? "your child"}.
               </p>
             </div>
 
-            <div className="space-y-6">
-              {PARENT_FEEDBACKS.map((fb) => (
-                <div key={fb.id} className="p-5 sm:p-6 rounded-2xl bg-background/50 border border-border/80 flex flex-col md:flex-row gap-5 transition-all hover:border-primary/30">
-                  <div className="space-y-2 md:w-2/5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-sm text-foreground">{fb.author}</span>
-                      <span className="text-[10px] text-muted-foreground">{fb.timestamp}</span>
-                    </div>
-                    <div className="text-xs font-semibold text-primary bg-primary/5 border border-primary/10 rounded px-2.5 py-1 inline-block">
-                      Episode: {fb.episode}
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed bg-card p-3 rounded-xl border border-border/55 italic">
-                      &ldquo;{fb.comment}&rdquo;
-                    </p>
-                  </div>
-
-                  {/* Arrow Indicator */}
-                  <div className="hidden md:flex items-center justify-center text-primary/40">
-                    <ChevronRight className="h-8 w-8" />
-                  </div>
-
-                  <div className="flex-1 space-y-3 bg-primary/5 border border-primary/10 p-5 rounded-2xl relative">
-                    <span className="absolute top-3.5 right-3.5 flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
-                    </span>
-                    <h4 className="font-extrabold text-sm text-primary flex items-center gap-1.5">
-                      <Sparkles className="h-4 w-4" /> AI Agent Corrective Action
-                    </h4>
-                    <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
-                      {fb.aiAction}
-                    </p>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-semibold pt-1.5 border-t border-primary/10">
-                      <span>Telemetry Tracer: OpenTelemetry OTLP 1.28</span>
-                      <span>•</span>
-                      <span className="text-emerald-500 font-bold">Phoenix Span Captured</span>
-                    </div>
-                  </div>
+            {loadingPrompts ? (
+              <p className="text-sm text-muted-foreground">Loading the latest improvements…</p>
+            ) : !latestPromptChange ? (
+              <p className="text-sm text-muted-foreground">
+                No tuning yet — the reviewer hasn't proposed any prompt changes. Once you've made a few
+                cartoons, you'll see the improvements it ships here.
+              </p>
+            ) : (
+              <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    Latest tune · {latestPromptChange.versionId}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(latestPromptChange.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
-              ))}
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  {humanizePromptChange(latestPromptChange.changeSummary, activeChild?.name ?? null)}
+                </p>
+              </div>
+            )}
+
+            {/* Recent cartoons for this child */}
+            <div className="pt-2">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground mb-3">
+                Recent cartoons {activeChild ? `for ${activeChild.name}` : ""}
+              </h3>
+              {loadingEpisodes ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : recentEpisodes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  None yet. Head to the home page and make a cartoon to see it appear here.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {recentEpisodes.map((ep) => (
+                    <li
+                      key={ep.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-background/60 border border-border/70"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{ep.topic}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Age {ep.ageBand} ·{" "}
+                          {ep.status === "ready"
+                            ? "Ready"
+                            : ep.status === "failed"
+                              ? "Retried"
+                              : "Generating"}
+                          {ep.review?.promptVersionUsed
+                            ? ` · prompt ${ep.review.promptVersionUsed}`
+                            : ""}
+                        </p>
+                      </div>
+                      {typeof ep.review?.score === "number" && (
+                        <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
+                          {ep.review.score}/10
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
