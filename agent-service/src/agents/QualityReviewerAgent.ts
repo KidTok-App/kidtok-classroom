@@ -234,7 +234,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
   }
 
   private async improveScenePrompt(
-    input: { episodeId: string; templateUsed: string; userSteerage?: string },
+    input: { episodeId: string; templateUsed: string; userSteerage?: string; childProfile?: ChildProfile },
     weakness: { degradedScenes: number; imageRetries: number; alignmentScore: number; notes: string[] },
   ): Promise<{ success: boolean; changeSummary?: string }> {
     let improvedTemplate: string | null = null;
@@ -245,6 +245,21 @@ Your notes MUST include a dedicated sentence assessment of child personalization
         input.templateUsed,
         "",
       ];
+      if (input.childProfile) {
+        const cp = input.childProfile;
+        userPromptParts.push(
+          "CHILD PROFILE CONTEXT (the cartoons are made for this specific child):",
+          `- name: ${cp.name}`,
+          `- age: ${cp.ageBand}`,
+          `- interests: ${cp.interests || "(not provided)"}`,
+          `- preferred art style: ${cp.artStyle || "(not provided)"}`,
+          "",
+          "INSTRUCTION FOR CHILD PROFILE:",
+          `Bake the child's preferred art style and interests directly into the visual cues of the template so that future scenes for ${cp.name} naturally lean toward their world (e.g. interest-themed props, characters, or environments).`,
+          `Your changeSummary MUST explicitly mention ${cp.name} and reference how the template now better serves their interests or art style.`,
+          ""
+        );
+      }
       if (input.userSteerage) {
         userPromptParts.push(
           "USER DIRECTIVE / STEERAGE GUIDELINE:",
