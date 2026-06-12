@@ -595,32 +595,62 @@ function SelfImprovementPage() {
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {recentEpisodes.map((ep) => (
-                    <li
-                      key={ep.id}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-background/60 border border-border/70"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate">{ep.topic}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Age {ep.ageBand} ·{" "}
-                          {ep.status === "ready"
-                            ? "Ready"
-                            : ep.status === "failed"
-                              ? "Retried"
-                              : "Generating"}
-                          {ep.review?.promptVersionUsed
-                            ? ` · prompt ${ep.review.promptVersionUsed}`
-                            : ""}
-                        </p>
-                      </div>
-                      {typeof ep.review?.score === "number" && (
-                        <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
-                          {ep.review.score}/10
-                        </span>
-                      )}
-                    </li>
-                  ))}
+                  {recentEpisodes.map((ep) => {
+                    const taggedName = ep.childProfile?.name ?? null;
+                    const isBusy = tagging === ep.id;
+                    return (
+                      <li
+                        key={ep.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl bg-background/60 border border-border/70"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold truncate">{ep.topic}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Age {ep.ageBand} ·{" "}
+                            {ep.status === "ready"
+                              ? "Ready"
+                              : ep.status === "failed"
+                                ? "Retried"
+                                : "Generating"}
+                            {ep.review?.promptVersionUsed
+                              ? ` · prompt ${ep.review.promptVersionUsed}`
+                              : ""}
+                            {taggedName ? ` · tagged for ${taggedName}` : " · untagged"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {typeof ep.review?.score === "number" && (
+                            <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                              {ep.review.score}/10
+                            </span>
+                          )}
+                          {childProfiles.length > 0 && (
+                            <select
+                              aria-label="Tag this cartoon for a child"
+                              value={taggedName ?? ""}
+                              disabled={isBusy}
+                              onChange={(e) => {
+                                const target = childProfiles.find((p) => p.name === e.target.value);
+                                if (target && target.name !== taggedName) {
+                                  void retagEpisode(ep.id, target);
+                                }
+                              }}
+                              className="text-[11px] font-bold bg-card border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+                            >
+                              <option value="" disabled>
+                                {isBusy ? "Tagging…" : "Tag for…"}
+                              </option>
+                              {childProfiles.map((p) => (
+                                <option key={p.name} value={p.name}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
