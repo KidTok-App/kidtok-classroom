@@ -139,7 +139,7 @@ export function createServer(deps: ServerDeps): Express {
 
       if (isAllowed) {
         res.setHeader("Access-Control-Allow-Origin", origin);
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
         res.setHeader("Access-Control-Max-Age", "86400");
         res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -286,6 +286,40 @@ export function createServer(deps: ServerDeps): Express {
     } catch (err) {
       console.error("[api] GET /episodes/:id failed:", err);
       res.status(500).json({ error: "failed to load episode" });
+    }
+  });
+
+  // Retroactively tag (or untag) an existing episode with a child profile.
+  // Owner-only. Used by the Self-Improvement page to assign legacy/untagged
+  // cartoons to a child so per-child stats reflect reality.
+  app.patch("/episodes/:id", async (req, res) => {
+    try {
+      const caller = await requireCaller(req, deps.cfg);
+      if (!caller) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+      const doc = await deps.store.get(req.params.id);
+      if (!doc) {
+        res.status(404).json({ error: "episode not found" });
+        return;
+      }
+      if (doc.ownerId && doc.ownerId !== caller.id) {
+        res.status(404).json({ error: "episode not found" });
+        return;
+      }
+      const body = (req.body ?? {}) as { childProfile?: unknown };
+      const nextProfile = sanitizeChildProfile(body.childProfile);
+      if (!nextProfile) {
+        res.status(400).json({ error: "childProfile must be a valid profile object" });
+        return;
+      }
+      await deps.store.update(req.params.id, { childProfile: nextProfile });
+      const updated = await deps.store.get(req.params.id);
+      res.json(updated ? toPublicEpisode(updated) : { id: req.params.id });
+    } catch (err) {
+      console.error("[api] PATCH /episodes/:id failed:", err);
+      res.status(500).json({ error: "failed to update episode" });
     }
   });
 
