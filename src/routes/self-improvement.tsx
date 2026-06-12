@@ -141,6 +141,54 @@ function SelfImprovementPage() {
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [childProfiles, setChildProfiles] = useState<ChildSummary[]>([]);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
+  const [tagging, setTagging] = useState<string | "bulk" | null>(null);
+
+  const toProfile = (c: ChildSummary): ChildProfile => ({
+    name: c.name,
+    ageBand: c.ageBand,
+    interests: c.interests,
+    artStyle: c.artStyle,
+  });
+
+  const retagEpisode = async (episodeId: string, target: ChildSummary, opts?: { silent?: boolean }) => {
+    setTagging(episodeId);
+    try {
+      const updated = await updateEpisodeChild(episodeId, toProfile(target));
+      setEpisodes((prev) => prev.map((e) => (e.id === episodeId ? { ...e, ...updated } : e)));
+      if (!opts?.silent) toast.success(`Tagged "${updated.topic}" for ${target.name}.`);
+    } catch (err) {
+      console.error("Error tagging episode:", err);
+      toast.error(err instanceof Error ? err.message : "Couldn't update that cartoon.");
+    } finally {
+      setTagging(null);
+    }
+  };
+
+  const tagAllUntagged = async (target: ChildSummary) => {
+    const untagged = episodes.filter((e) => !e.childProfile?.name);
+    if (untagged.length === 0) return;
+    setTagging("bulk");
+    let ok = 0;
+    let failed = 0;
+    for (const ep of untagged) {
+      try {
+        const updated = await updateEpisodeChild(ep.id, toProfile(target));
+        setEpisodes((prev) => prev.map((e) => (e.id === ep.id ? { ...e, ...updated } : e)));
+        ok++;
+      } catch (err) {
+        console.error("Bulk tag failed for", ep.id, err);
+        failed++;
+      }
+    }
+    setTagging(null);
+    if (ok > 0 && failed === 0) {
+      toast.success(`Tagged ${ok} cartoon${ok === 1 ? "" : "s"} for ${target.name}.`);
+    } else if (ok > 0) {
+      toast.warning(`Tagged ${ok} cartoons for ${target.name}; ${failed} failed — try again.`);
+    } else {
+      toast.error("Couldn't tag those cartoons. Please try again.");
+    }
+  };
 
   // Load user steering, child profiles, and episodes
   useEffect(() => {
