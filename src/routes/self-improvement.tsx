@@ -338,6 +338,40 @@ function SelfImprovementPage() {
         </div>
       </div>
 
+      {/* Child switcher — scopes insights + prompt history to one child */}
+      {childProfiles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mr-1">
+            Insights for:
+          </span>
+          {childProfiles.map((p) => (
+            <button
+              key={p.name}
+              type="button"
+              onClick={() => setActiveChild(p)}
+              className={`px-3.5 py-2 rounded-full text-sm font-extrabold border-2 transition-all ${
+                activeChild?.name === p.name
+                  ? "bg-primary text-primary-foreground border-primary shadow-soft scale-[1.03]"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-primary/40"
+              }`}
+            >
+              🧒 {p.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setActiveChild(null)}
+            className={`px-3.5 py-2 rounded-full text-sm font-extrabold border-2 transition-all ${
+              activeChild === null
+                ? "bg-primary text-primary-foreground border-primary shadow-soft scale-[1.03]"
+                : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-primary/40"
+            }`}
+          >
+            ✨ All cartoons
+          </button>
+        </div>
+      )}
+
       {viewMode === "parent" ? (
         /* PARENT-FRIENDLY VIEW — real data only, derived from this user's episodes */
         <div className="space-y-8 animate-in fade-in duration-300">
