@@ -10,6 +10,7 @@ import {
   SCENE_PROMPT_DESCRIPTION,
 } from "../legacy/scenePromptTemplate.js";
 import type { PhoenixMcp, TextLlm } from "../clients/interfaces.js";
+import { childScopedPromptName } from "../lib/promptScoping.js";
 import type { EpisodeScript, PlannedScene, ChildProfile } from "../types.js";
 
 const PLANNER_RESPONSE_SCHEMA = {
@@ -50,6 +51,8 @@ export interface ScenePlanResult {
   templateUsed: string;
   /** True when a reviewer-improved template failed token validation and we fell back to the seed. */
   templateFellBack: boolean;
+  /** Resolved (possibly child-scoped) prompt name the reviewer must publish to. */
+  promptName: string;
 }
 
 export class ScenePlannerAgent {
@@ -67,8 +70,17 @@ export class ScenePlannerAgent {
     childProfile?: ChildProfile;
   }): Promise<ScenePlanResult> {
     // 1. Fetch the live template from Phoenix prompt management (MCP).
+    //    Prompts are scoped per child ("<base>--<child-slug>") so each child
+    //    accrues their own improvement loop; a child with no published
+    //    versions yet inherits the shared baseline template.
+    const promptName = childScopedPromptName(this.scenePromptName, input.childProfile?.name);
     let promptSeeded = false;
-    let prompt = await this.phoenix.getLatestPrompt(this.scenePromptName);
+    let inheritedBaseline = false;
+    let prompt = await this.phoenix.getLatestPrompt(promptName);
+    if (!prompt && promptName !== this.scenePromptName) {
+      prompt = await this.phoenix.getLatestPrompt(this.scenePromptName);
+      if (prompt) inheritedBaseline = true;
+    }
     if (!prompt) {
       prompt = await this.phoenix.upsertPrompt({
         name: this.scenePromptName,
@@ -76,12 +88,13 @@ export class ScenePlannerAgent {
         template: LEGACY_SCENE_PROMPT_TEMPLATE,
       });
       promptSeeded = true;
+      inheritedBaseline = promptName !== this.scenePromptName;
       console.log(
         `[ScenePlannerAgent] seeded "${this.scenePromptName}" from the legacy template (version=${prompt.versionId ?? "unknown"})`,
       );
     }
     console.log(
-      `[ScenePlannerAgent] episode=${input.episodeId} using scene-prompt template "${this.scenePromptName}" version=${prompt.versionId ?? "unknown"} seeded=${promptSeeded}`,
+      `[ScenePlannerAgent] episode=${input.episodeId} using scene-prompt template "${promptName}"${inheritedBaseline ? " (inherited shared baseline)" : ""} version=${prompt.versionId ?? "unknown"} seeded=${promptSeeded}`,
     );
 
     // 2. One consistent visual description per scene.
@@ -170,6 +183,7 @@ export class ScenePlannerAgent {
       promptSeeded,
       templateUsed,
       templateFellBack,
+      promptName,
     };
   }
 }
