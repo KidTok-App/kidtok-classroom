@@ -109,11 +109,14 @@ function sanitizeChildProfile(value: unknown): EpisodeDoc["childProfile"] | unde
   if (!value || typeof value !== "object") return undefined;
   const raw = value as Record<string, unknown>;
   const name = sanitizeShortString(raw.name, 60);
-  const interests = sanitizeShortString(raw.interests, 200);
-  const artStyle = sanitizeShortString(raw.artStyle, 80);
+  // Only name + a valid ageBand are required. interests / artStyle are
+  // optional so the front-end never accidentally creates an untagged episode
+  // just because the parent left those fields blank.
+  if (!name) return undefined;
   const ageBand = Number(raw.ageBand);
-  if (!name || !interests || !artStyle) return undefined;
   if (!Number.isInteger(ageBand) || ageBand < 5 || ageBand > 8) return undefined;
+  const interests = sanitizeShortString(raw.interests, 200) ?? "";
+  const artStyle = sanitizeShortString(raw.artStyle, 80) ?? "crayon sketch";
   return { name, interests, artStyle, ageBand };
 }
 
