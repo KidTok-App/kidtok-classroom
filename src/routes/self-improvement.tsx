@@ -74,26 +74,57 @@ function diffWords(oldStr: string, newStr: string) {
   return diff;
 }
 
-const PARENT_FEEDBACKS = [
-  {
-    id: "1",
-    author: "Ms. Emily (Kindergarten)",
-    episode: "How a Seed Grows 🌱",
-    rating: 5,
-    comment: "The crayon sketch style was absolutely delightful! Can we have slightly brighter background drawings?",
-    aiAction: "Quality Reviewer Agent analyzed feedback, updated 'kidtok-scene-prompt' to version 2, and added specific style directives to favor warm backgrounds and high color contrast.",
-    timestamp: "12 hours ago"
-  },
-  {
-    id: "2",
-    author: "Mr. Arthur (Grade 1)",
-    episode: "Why is the Sky Blue? 🌌",
-    rating: 4,
-    comment: "Excellent narrative, but Zosia (age 5) got a bit distracted when the explanation went too deep into electromagnetic wave physics.",
-    aiAction: "Script Agent updated the age 5 complexity threshold. Added Zosia's dino interest to our loop. Active prompt version 3 now replaces complex light wave terms with a cute 'bouncy rubber ball bouncing off dust' dinosaur analogy.",
-    timestamp: "1 day ago"
+interface ChildSummary {
+  name: string;
+  ageBand: number;
+  interests: string;
+  artStyle: string;
+}
+
+function loadActiveChild(userId: string | undefined): ChildSummary | null {
+  if (typeof window === "undefined") return null;
+  const scope = userId ?? "guest";
+  try {
+    const raw = localStorage.getItem(`kidtok_child_profiles:${scope}`);
+    if (!raw) return null;
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const lastName = localStorage.getItem(`kidtok_last_child_profile:${scope}`);
+    const found = list.find((p: any) => p?.name === lastName) ?? list[0];
+    if (!found?.name) return null;
+    return {
+      name: String(found.name),
+      ageBand: Number(found.ageBand ?? 6),
+      interests: String(found.interests ?? ""),
+      artStyle: String(found.artStyle ?? "crayon sketch"),
+    };
+  } catch {
+    return null;
   }
-];
+}
+
+/** Turn a short, technical changeSummary into a plain-English parent sentence. */
+function humanizePromptChange(summary: string, childName: string | null): string {
+  if (!summary) return "Refined the storyteller so the next cartoon should feel a little smoother.";
+  const s = summary.toLowerCase();
+  const who = childName ?? "your child";
+  if (s.includes("safety") || s.includes("block")) {
+    return `Tightened safety wording so future cartoons for ${who} stay even more kid-appropriate.`;
+  }
+  if (s.includes("pacing") || s.includes("length") || s.includes("speed")) {
+    return `Adjusted pacing so the next cartoons match ${who}'s attention span more naturally.`;
+  }
+  if (s.includes("color") || s.includes("contrast") || s.includes("background")) {
+    return `Tuned the art so backgrounds and contrast feel friendlier for ${who}.`;
+  }
+  if (s.includes("vocab") || s.includes("word") || s.includes("simpler") || s.includes("complex")) {
+    return `Simplified vocabulary so explanations land for ${who}'s age band.`;
+  }
+  if (s.includes("interest") || s.includes("analogy") || s.includes("character")) {
+    return `Leaned future analogies into things ${who} already loves.`;
+  }
+  return summary.charAt(0).toUpperCase() + summary.slice(1);
+}
 
 function SelfImprovementPage() {
   const [viewMode, setViewMode] = useState<"parent" | "developer">("parent");
