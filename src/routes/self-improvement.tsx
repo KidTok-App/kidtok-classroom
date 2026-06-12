@@ -477,6 +477,16 @@ function SelfImprovementPage() {
               </p>
             </div>
 
+            {activeChild && historyScope === "global" && !loadingPrompts && (
+              <div className="bg-sky-500/5 border border-sky-500/25 rounded-2xl p-3.5 text-xs text-foreground/85 leading-relaxed">
+                No <span className="font-semibold">{activeChild.name}</span>-specific tuning yet — you're
+                seeing the shared baseline. Generate a cartoon with{" "}
+                <span className="font-semibold">{activeChild.name}</span> selected and the reviewer will
+                start a personal improvement loop just for them.
+              </div>
+            )}
+
+
             {loadingPrompts ? (
               <p className="text-sm text-muted-foreground">Loading the latest improvements…</p>
             ) : !latestPromptChange ? (
