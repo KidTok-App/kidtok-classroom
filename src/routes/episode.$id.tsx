@@ -324,9 +324,9 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
 
   // Load iteration chain from the database
   const { data: allEpisodes } = useQuery({
-    queryKey: ["episodes"],
+    queryKey: ["episodes", user?.id ?? "guest"],
     queryFn: listEpisodes,
-    enabled: isApiConfigured(),
+    enabled: isApiConfigured() && !!user,
   });
 
   const iterations = allEpisodes
