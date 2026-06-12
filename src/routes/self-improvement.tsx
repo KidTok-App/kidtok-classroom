@@ -352,6 +352,21 @@ function SelfImprovementPage() {
             )}
           </div>
 
+          {/* Error / untagged hints */}
+          {episodesError && (
+            <div className="bg-destructive/5 border-2 border-destructive/30 rounded-2xl p-4 text-sm text-destructive">
+              {episodesError}
+            </div>
+          )}
+          {!episodesError && showUntaggedHint && (
+            <div className="bg-amber-500/5 border-2 border-amber-500/30 rounded-2xl p-4 text-sm text-foreground/85 leading-relaxed">
+              We found {untaggedCount} cartoon{untaggedCount === 1 ? "" : "s"} on your account but none
+              are tagged for <span className="font-semibold">{activeChild?.name}</span> yet. Make sure
+              {" "}<span className="font-semibold">{activeChild?.name}</span> is selected on the home page
+              before generating, so the reviewer can personalize future cartoons for them.
+            </div>
+          )}
+
           {/* Real score cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-card border-2 border-border rounded-3xl p-6 shadow-soft">
