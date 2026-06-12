@@ -309,26 +309,12 @@ export function createServer(deps: ServerDeps): Express {
         return;
       }
       const body = (req.body ?? {}) as { childProfile?: unknown };
-      if (!("childProfile" in body)) {
-        res.status(400).json({ error: "childProfile field is required (object or null)" });
+      const nextProfile = sanitizeChildProfile(body.childProfile);
+      if (!nextProfile) {
+        res.status(400).json({ error: "childProfile must be a valid profile object" });
         return;
       }
-      let nextProfile: EpisodeDoc["childProfile"] | null;
-      if (body.childProfile === null) {
-        nextProfile = null;
-      } else {
-        const sanitized = sanitizeChildProfile(body.childProfile);
-        if (!sanitized) {
-          res.status(400).json({ error: "childProfile must be a valid profile object or null" });
-          return;
-        }
-        nextProfile = sanitized;
-      }
-      // Firestore client is configured with ignoreUndefinedProperties; pass
-      // null to clear the field via merge.
-      await deps.store.update(req.params.id, {
-        childProfile: nextProfile ?? undefined,
-      });
+      await deps.store.update(req.params.id, { childProfile: nextProfile });
       const updated = await deps.store.get(req.params.id);
       res.json(updated ? toPublicEpisode(updated) : { id: req.params.id });
     } catch (err) {
