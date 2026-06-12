@@ -81,10 +81,6 @@ export function AppHeader() {
           <nav className="flex items-center gap-1 text-sm font-semibold">
             <NavLink to="/">Create</NavLink>
             <NavLink to="/library">Library</NavLink>
-            <NavLink to="/self-improvement">
-              <span className="hidden sm:inline">Self‑improvement</span>
-              <span className="sm:hidden">Insights</span>
-            </NavLink>
             <NavLink to="/about">About</NavLink>
           </nav>
 

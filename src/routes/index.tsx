@@ -556,7 +556,7 @@ function HomePage() {
 
       {/* Feature row */}
       <section className="mx-auto max-w-6xl px-4 pb-20">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FeatureCard icon={<Zap className="h-5 w-5" />} title="Ready fast" body="From topic to cartoon in just a few minutes — no editing required." />
           <FeatureCard icon={<Heart className="h-5 w-5" />} title="Kid‑friendly" body="Age‑appropriate vocabulary, bright art, and a warm narrator voice." />
           <FeatureCard icon={<Shield className="h-5 w-5" />} title="Parent‑approved" body="A reviewer agent checks every cartoon before it reaches the player." />
