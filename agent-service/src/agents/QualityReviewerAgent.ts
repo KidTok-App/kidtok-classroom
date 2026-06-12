@@ -81,7 +81,10 @@ export class QualityReviewerAgent {
     safetyVerdict: string;
     userSteerage?: string;
     childProfile?: ChildProfile;
+    /** Resolved (possibly child-scoped) prompt name the planner used. */
+    promptName?: string;
   }): Promise<EpisodeReview> {
+    const promptName = input.promptName ?? this.scenePromptName;
     // --- 1. Pull THIS episode's spans back out of Phoenix via MCP ---------
     await this.forceFlushTracing().catch(() => {});
     const spans = await this.pollEpisodeSpans(input.episodeId);
@@ -185,6 +188,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
           templateUsed: input.templateUsed,
           userSteerage: input.userSteerage,
           childProfile: input.childProfile,
+          promptName,
         },
         {
           degradedScenes,
@@ -196,7 +200,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
       promptImproved = improveRes.success;
       if (promptImproved) {
         const childTag = input.childProfile?.name ? ` for ${input.childProfile.name}` : "";
-        const publishedNote = `Prompt mgmt: published an improved "${this.scenePromptName}" version${childTag} for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
+        const publishedNote = `Prompt mgmt: published an improved "${promptName}" version${childTag} for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
         finalNotes += " " + publishedNote;
       }
     }
@@ -234,7 +238,13 @@ Your notes MUST include a dedicated sentence assessment of child personalization
   }
 
   private async improveScenePrompt(
-    input: { episodeId: string; templateUsed: string; userSteerage?: string; childProfile?: ChildProfile },
+    input: {
+      episodeId: string;
+      templateUsed: string;
+      userSteerage?: string;
+      childProfile?: ChildProfile;
+      promptName: string;
+    },
     weakness: { degradedScenes: number; imageRetries: number; alignmentScore: number; notes: string[] },
   ): Promise<{ success: boolean; changeSummary?: string }> {
     let improvedTemplate: string | null = null;
@@ -336,13 +346,13 @@ Your notes MUST include a dedicated sentence assessment of child personalization
     }
 
     const version = await this.phoenix.upsertPrompt({
-      name: this.scenePromptName,
+      name: input.promptName,
       description: SCENE_PROMPT_DESCRIPTION,
       template: improvedTemplate,
       changeSummary,
     });
     console.log(
-      `[QualityReviewerAgent] upserted "${this.scenePromptName}" via Phoenix MCP (new version=${version.versionId ?? "unknown"})`,
+      `[QualityReviewerAgent] upserted "${input.promptName}" via Phoenix MCP (new version=${version.versionId ?? "unknown"})`,
     );
     return { success: true, changeSummary };
   }
