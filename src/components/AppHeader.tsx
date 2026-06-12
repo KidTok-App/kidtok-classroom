@@ -140,8 +140,7 @@ export function AppHeader() {
               className="inline-flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 text-xs font-extrabold px-2.5 sm:px-3.5 py-2 rounded-full cursor-pointer shrink-0"
             >
               <LogIn className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden xs:inline sm:inline">Sign In</span>
-              <span className="xs:hidden sm:hidden">In</span>
+              <span>Sign In</span>
             </button>
           )}
         </div>
