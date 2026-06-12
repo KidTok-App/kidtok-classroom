@@ -979,9 +979,9 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
                   <Zap className="h-3 w-3" /> MCP-Pushed
                 </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-amber-400">{promptVersionUsed}</span>
-                <span className="text-xs text-muted-foreground font-semibold">active template</span>
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className="text-3xl sm:text-4xl font-black text-amber-400 truncate min-w-0 block" title={promptVersionUsed}>{promptVersionUsed}</span>
+                <span className="text-xs text-muted-foreground font-semibold shrink-0">active template</span>
               </div>
               <div className="text-xs text-muted-foreground leading-relaxed">
                 {promptImproved 
