@@ -284,8 +284,31 @@ function SelfImprovementPage() {
     );
   };
 
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center space-y-5">
+        <h1 className="text-3xl font-extrabold">AI Self‑Improvement</h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in to see how the AI is learning from your child's cartoons and to personalize the next one.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("kidtok:open-signin"));
+            }
+          }}
+          className="btn-gradient inline-flex items-center gap-2 font-extrabold px-6 py-3 rounded-full"
+        >
+          Sign in
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 space-y-10">
+
       
       {/* Header and Toggle */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
