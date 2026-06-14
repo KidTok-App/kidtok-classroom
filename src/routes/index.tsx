@@ -561,14 +561,26 @@ function HomePage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn-gradient hover:[--tw:0] inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0"
-            >
-              <Sparkles className="h-5 w-5" />
-              {submitting ? "Starting…" : "Create cartoon"}
-            </button>
+            {user ? (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-gradient hover:[--tw:0] inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0"
+              >
+                <Sparkles className="h-5 w-5" />
+                {submitting ? "Starting…" : "Create cartoon"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={requestSignIn}
+                className="btn-gradient inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Sparkles className="h-5 w-5" />
+                Sign in to generate
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {
