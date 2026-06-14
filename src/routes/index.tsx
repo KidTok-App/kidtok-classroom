@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile } from "lucide-react";
+import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile, LogIn, Lock } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
 import { useAuth } from "@/lib/auth";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const OMNI_ALLOWED_EMAIL = "wiktor@kidtok.co";
 
