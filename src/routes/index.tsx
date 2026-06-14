@@ -209,6 +209,11 @@ function HomePage() {
   };
 
   const requestSignIn = () => {
+    setSignInPromptOpen(true);
+  };
+
+  const openSignInDialog = () => {
+    setSignInPromptOpen(false);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("kidtok:open-signin"));
     }
@@ -216,13 +221,12 @@ function HomePage() {
 
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
-    if (!t) {
-      toast.error("Tell us what to learn about first!");
+    if (!user) {
+      setSignInPromptOpen(true);
       return;
     }
-    if (!user) {
-      toast.error("Sign in to generate a cartoon.");
-      requestSignIn();
+    if (!t) {
+      toast.error("Tell us what to learn about first!");
       return;
     }
     if (!isApiConfigured()) {
