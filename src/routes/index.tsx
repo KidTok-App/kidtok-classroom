@@ -199,16 +199,28 @@ function HomePage() {
     toast.success(`Removed ${childName}'s profile.`);
   };
 
+  const requestSignIn = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kidtok:open-signin"));
+    }
+  };
+
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
     if (!t) {
       toast.error("Tell us what to learn about first!");
       return;
     }
+    if (!user) {
+      toast.error("Sign in to generate a cartoon.");
+      requestSignIn();
+      return;
+    }
     if (!isApiConfigured()) {
       toast.error("Backend not configured. Set VITE_AGENT_API_URL.");
       return;
     }
+
     const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
 
@@ -287,8 +299,26 @@ function HomePage() {
             />
           </div>
 
-          {/* Child Profile Carousel Section */}
+          {/* Child Profile Carousel Section — requires sign-in (profiles are per-account) */}
+          {!user ? (
+            <button
+              type="button"
+              onClick={requestSignIn}
+              className="w-full text-left p-5 rounded-2xl border-2 border-dashed border-border bg-card/50 hover:border-primary/50 hover:bg-card transition-all flex items-center gap-3 cursor-pointer"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+                <Baby className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-extrabold text-sm text-foreground">Sign in to personalize cartoons</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Save child profiles, tag each cartoon to the right kid, and let the AI learn what works for them.
+                </p>
+              </div>
+            </button>
+          ) : (
           <div className="space-y-4 text-left">
+
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Baby className="h-4.5 w-4.5 text-primary" /> Personalized Child Profiles
@@ -438,6 +468,8 @@ function HomePage() {
               </div>
             )}
           </div>
+          )}
+
 
 
           {/* Mode Switch Cards */}
@@ -549,14 +581,26 @@ function HomePage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn-gradient hover:[--tw:0] inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0"
-            >
-              <Sparkles className="h-5 w-5" />
-              {submitting ? "Starting…" : "Create cartoon"}
-            </button>
+            {user ? (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-gradient hover:[--tw:0] inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:translate-y-0"
+              >
+                <Sparkles className="h-5 w-5" />
+                {submitting ? "Starting…" : "Create cartoon"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={requestSignIn}
+                className="btn-gradient inline-flex items-center gap-2 font-extrabold text-base sm:text-lg px-8 py-4 rounded-full hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Sparkles className="h-5 w-5" />
+                Sign in to generate
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {

@@ -36,6 +36,14 @@ export function AppHeader() {
     if (user && dialogOpen) setDialogOpen(false);
   }, [user, dialogOpen]);
 
+  // Allow other pages (e.g. the home form) to request the sign-in dialog
+  useEffect(() => {
+    const open = () => setDialogOpen(true);
+    window.addEventListener("kidtok:open-signin", open);
+    return () => window.removeEventListener("kidtok:open-signin", open);
+  }, []);
+
+
 
   // Trigger Google button rendering when Dialog opens
   useEffect(() => {
