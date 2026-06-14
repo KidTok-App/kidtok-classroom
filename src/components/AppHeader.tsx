@@ -37,6 +37,7 @@ export function AppHeader() {
   const { user, signInWithMock, signOut, googleClientId } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Auto-close sign-in dialog once a user is authenticated (Google or mock)
   useEffect(() => {
