@@ -315,3 +315,17 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   );
 }
 
+
+function MobileNavLink({ to, children, onNavigate }: { to: string; children: React.ReactNode; onNavigate: () => void }) {
+  return (
+    <Link
+      to={to}
+      onClick={onNavigate}
+      className="px-4 py-3 rounded-2xl text-foreground/80 hover:bg-secondary hover:text-foreground transition"
+      activeProps={{ className: "px-4 py-3 rounded-2xl bg-primary text-primary-foreground" }}
+      activeOptions={{ exact: to === "/" }}
+    >
+      {children}
+    </Link>
+  );
+}
