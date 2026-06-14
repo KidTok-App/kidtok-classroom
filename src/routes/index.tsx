@@ -468,6 +468,8 @@ function HomePage() {
               </div>
             )}
           </div>
+          )}
+
 
 
           {/* Mode Switch Cards */}
