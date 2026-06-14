@@ -88,21 +88,21 @@ export function AppHeader() {
             height={36}
             className="h-8 sm:h-9 w-auto"
           />
-          <span className="hidden sm:inline-flex items-center rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wider px-2 py-0.5">
+          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2 py-0.5">
             Classroom
           </span>
         </Link>
 
-        <div className="flex items-center gap-1.5 sm:gap-6 shrink-0 min-w-0">
-          <nav className="flex items-center gap-0.5 sm:gap-1 text-sm font-semibold min-w-0">
+        {/* Desktop nav + auth */}
+        <div className="hidden sm:flex items-center gap-6 shrink-0 min-w-0">
+          <nav className="flex items-center gap-1 text-sm font-semibold min-w-0">
             <NavLink to="/">Create</NavLink>
             <NavLink to="/library">Library</NavLink>
             <NavLink to="/about">About</NavLink>
           </nav>
 
-          <div className="h-6 w-[1px] bg-border/60 hidden sm:block" />
+          <div className="h-6 w-[1px] bg-border/60" />
 
-          {/* User Auth Controls */}
           {user ? (
             <div className="relative shrink-0">
               <button
@@ -118,12 +118,12 @@ export function AppHeader() {
                 </Avatar>
                 <span className="hidden md:inline text-xs font-bold pr-1">{user.name}</span>
               </button>
-              
+
               {dropdownOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setDropdownOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setDropdownOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-48 bg-card border border-border/80 rounded-2xl shadow-lg p-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                     <div className="px-3 py-2 text-[11px] font-bold text-muted-foreground border-b border-border/40">
@@ -153,14 +153,85 @@ export function AppHeader() {
             <button
               onClick={() => setDialogOpen(true)}
               aria-label="Sign in"
-              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 text-xs font-extrabold px-2.5 sm:px-3.5 py-2 rounded-full cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 text-xs font-extrabold px-3.5 py-2 rounded-full cursor-pointer shrink-0"
             >
               <LogIn className="h-3.5 w-3.5 shrink-0" />
               <span>Sign In</span>
             </button>
           )}
         </div>
+
+        {/* Mobile menu trigger */}
+        <div className="flex sm:hidden items-center gap-2 shrink-0">
+          {user && (
+            <Avatar className="h-8 w-8 border border-border">
+              <AvatarImage src={user.picture} alt={user.name} />
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                {user.name[0]}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
+            className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
+
+      {/* Mobile sheet menu */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="right" className="w-[88vw] max-w-sm bg-card border-l-2 border-border p-0 flex flex-col">
+          <SheetHeader className="px-5 pt-6 pb-4 border-b border-border/60 text-left">
+            <SheetTitle className="text-lg font-extrabold">Menu</SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground">
+              {user ? `Signed in as ${user.name}` : "Not signed in"}
+            </SheetDescription>
+          </SheetHeader>
+
+          <nav className="flex-1 flex flex-col gap-1 px-3 py-4 text-sm font-bold">
+            <MobileNavLink to="/" onNavigate={() => setMobileMenuOpen(false)}>Create</MobileNavLink>
+            <MobileNavLink to="/library" onNavigate={() => setMobileMenuOpen(false)}>Library</MobileNavLink>
+            <MobileNavLink to="/about" onNavigate={() => setMobileMenuOpen(false)}>About</MobileNavLink>
+            {user && (
+              <MobileNavLink to="/self-improvement" onNavigate={() => setMobileMenuOpen(false)}>
+                <span className="inline-flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" /> AI Self‑Improvement
+                </span>
+              </MobileNavLink>
+            )}
+          </nav>
+
+          <div className="border-t border-border/60 p-4">
+            {user ? (
+              <button
+                onClick={() => {
+                  signOut();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-destructive/10 text-destructive font-extrabold text-sm hover:bg-destructive hover:text-destructive-foreground transition"
+              >
+                <LogOut className="h-4 w-4" /> Sign Out
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setDialogOpen(true);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground font-extrabold text-sm hover:opacity-90 transition"
+              >
+                <LogIn className="h-4 w-4" /> Sign In
+              </button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+      </div>
+
 
       {/* Modern, kid-friendly authentication Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
