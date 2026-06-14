@@ -199,16 +199,28 @@ function HomePage() {
     toast.success(`Removed ${childName}'s profile.`);
   };
 
+  const requestSignIn = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kidtok:open-signin"));
+    }
+  };
+
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
     if (!t) {
       toast.error("Tell us what to learn about first!");
       return;
     }
+    if (!user) {
+      toast.error("Sign in to generate a cartoon.");
+      requestSignIn();
+      return;
+    }
     if (!isApiConfigured()) {
       toast.error("Backend not configured. Set VITE_AGENT_API_URL.");
       return;
     }
+
     const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
 
