@@ -67,6 +67,7 @@ function HomePage() {
   const [topic, setTopic] = useState("");
   const [ageBand, setAgeBand] = useState<number>(6);
   const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
+  const [signInPromptOpen, setSignInPromptOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
 
