@@ -230,7 +230,8 @@ export function AppHeader() {
           </div>
         </SheetContent>
       </Sheet>
-      </div>
+
+
 
 
       {/* Modern, kid-friendly authentication Dialog */}
