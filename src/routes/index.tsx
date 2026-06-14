@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile } from "lucide-react";
+import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile, LogIn, Lock } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
 import { useAuth } from "@/lib/auth";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const OMNI_ALLOWED_EMAIL = "wiktor@kidtok.co";
 
@@ -59,6 +67,7 @@ function HomePage() {
   const [topic, setTopic] = useState("");
   const [ageBand, setAgeBand] = useState<number>(6);
   const [generationMode, setGenerationMode] = useState<"slides" | "video">("slides");
+  const [signInPromptOpen, setSignInPromptOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
 
@@ -200,6 +209,11 @@ function HomePage() {
   };
 
   const requestSignIn = () => {
+    setSignInPromptOpen(true);
+  };
+
+  const openSignInDialog = () => {
+    setSignInPromptOpen(false);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("kidtok:open-signin"));
     }
@@ -207,13 +221,12 @@ function HomePage() {
 
   const submit = async (rawTopic: string) => {
     const t = rawTopic.trim();
-    if (!t) {
-      toast.error("Tell us what to learn about first!");
+    if (!user) {
+      setSignInPromptOpen(true);
       return;
     }
-    if (!user) {
-      toast.error("Sign in to generate a cartoon.");
-      requestSignIn();
+    if (!t) {
+      toast.error("Tell us what to learn about first!");
       return;
     }
     if (!isApiConfigured()) {
@@ -658,6 +671,40 @@ function HomePage() {
           <FeatureCard icon={<Shield className="h-5 w-5" />} title="Parent‑approved" body="A reviewer agent checks every cartoon before it reaches the player." />
         </div>
       </section>
+
+      {/* Sign-in required gate */}
+      <Dialog open={signInPromptOpen} onOpenChange={setSignInPromptOpen}>
+        <DialogContent className="max-w-md bg-card border-2 border-border rounded-3xl p-6 sm:p-8">
+          <DialogHeader className="flex flex-col items-center text-center space-y-2">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-1">
+              <Lock className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-2xl font-extrabold tracking-tight">
+              Sign in to create cartoons
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground max-w-[320px]">
+              Cartoons are saved to your private library and personalized per child profile. Sign in (or use a demo account) to start generating.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setSignInPromptOpen(false)}
+              className="inline-flex justify-center items-center px-5 py-3 rounded-full border-2 border-border bg-background font-bold text-sm hover:border-primary transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={openSignInDialog}
+              className="btn-gradient inline-flex justify-center items-center gap-2 px-5 py-3 rounded-full font-extrabold text-sm"
+            >
+              <LogIn className="h-4 w-4" />
+              Sign in
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
