@@ -453,13 +453,15 @@ function HomePage() {
                         : "border-border bg-card hover:border-primary/45"
                     }`}
                   >
-                    <span
+                    <button
+                      type="button"
                       onClick={(e) => handleDeleteChild(idx, e)}
+                      aria-label={`Delete profile for ${p.name}`}
                       className="absolute top-2 right-2 text-muted-foreground/30 hover:text-destructive p-1 rounded-lg transition-colors z-10"
                       title={`Delete profile for ${p.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </span>
+                    </button>
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-xl">🧒</span>
                       <div>
