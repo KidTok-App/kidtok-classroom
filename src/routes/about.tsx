@@ -16,6 +16,25 @@ export const Route = createFileRoute("/about")({
         content:
           "Personalized child profiles, a synced music bed, an animated Slides mode, and a quality-reviewed multi-agent pipeline.",
       },
+      { property: "og:url", content: "https://kidtokai.com/about" },
+    ],
+    links: [{ rel: "canonical", href: "https://kidtokai.com/about" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Service",
+          name: "KidTok Classroom",
+          serviceType: "AI-generated educational cartoons",
+          provider: { "@type": "Organization", name: "KidTok", url: "https://kidtokai.com" },
+          areaServed: "Worldwide",
+          audience: { "@type": "PeopleAudience", suggestedMinAge: 5, suggestedMaxAge: 8 },
+          description:
+            "A multi-agent AI pipeline that writes, illustrates, narrates, scores and reviews short animated cartoons personalized for kids ages 5–8.",
+          url: "https://kidtokai.com/about",
+        }),
+      },
     ],
   }),
   component: AboutPage,

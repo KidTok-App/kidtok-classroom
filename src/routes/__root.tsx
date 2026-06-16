@@ -87,17 +87,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
       },
       { name: "author", content: "KidTok" },
+      { property: "og:site_name", content: "KidTok Classroom" },
+      { property: "og:type", content: "website" },
       { property: "og:title", content: "KidTok Classroom" },
       {
         property: "og:description",
         content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
       },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "KidTok Classroom" },
-      { name: "description", content: "Educational cartoon episodes for kids ages 5–8." },
-      { property: "og:description", content: "Educational cartoon episodes for kids ages 5–8." },
-      { name: "twitter:description", content: "Educational cartoon episodes for kids ages 5–8." },
+      {
+        name: "twitter:description",
+        content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
+      },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xkHG1CWJpoebU5Wc5jr6Lo11kjf2/social-images/social-1781189501614-KidTokLogo-text-wbg-2.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xkHG1CWJpoebU5Wc5jr6Lo11kjf2/social-images/social-1781189501614-KidTokLogo-text-wbg-2.webp" },
     ],
@@ -109,6 +111,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              name: "KidTok Classroom",
+              url: "https://kidtokai.com",
+              logo: "https://kidtokai.com/kidtok-mark.png",
+            },
+            {
+              "@type": "WebSite",
+              name: "KidTok Classroom",
+              url: "https://kidtokai.com",
+              description:
+                "Multi-agent AI that turns any topic into an animated educational cartoon for kids 5–8.",
+            },
+          ],
+        }),
       },
     ],
   }),
