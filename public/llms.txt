@@ -1,0 +1,12 @@
+# KidTok Classroom
+
+> Multi-agent AI that turns any topic into a personalized, safe, animated educational cartoon for kids ages 5–8.
+
+KidTok Classroom is a web app that uses a team of specialised AI agents (script, scene planner, scene images, narration, music, assembly, and a quality reviewer) to write, illustrate, narrate and score short cartoons tailored to a child's age, interests and art style. Cartoons are saved to a private library tied to the parent's account and continuously improved by a self-tuning reviewer loop.
+
+## Pages
+
+- [Home](/): Type a topic, pick an age band (5–8), choose a generation mode, and start a cartoon.
+- [About](/about): How the multi-agent pipeline works, child profiles, music bed and the self-improving reviewer.
+- [Library](/library): The signed-in user's saved cartoons (requires sign-in).
+- [Self-Improvement](/self-improvement): Live view of how the reviewer agent evaluates runs and refines prompts over time.

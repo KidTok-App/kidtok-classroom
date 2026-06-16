@@ -83,7 +83,7 @@ export function AppHeader() {
         <Link to="/" className="flex items-center gap-2 shrink-0 min-w-0" aria-label="KidTok Classroom home">
           <img
             src="/kidtok-logo.webp"
-            alt="KidTok"
+            alt="KidTok Classroom logo"
             width={120}
             height={36}
             className="h-8 sm:h-9 w-auto"
