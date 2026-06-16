@@ -547,6 +547,8 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
                     key={star}
                     type="button"
                     onClick={() => setKidEngagement(star)}
+                    aria-label={`Rate engagement ${star} of 5`}
+                    aria-pressed={star === kidEngagement}
                     className="transition hover:scale-110"
                     style={{ cursor: "pointer" }}
                   >
