@@ -578,6 +578,8 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
                     key={star}
                     type="button"
                     onClick={() => setLearningClarity(star)}
+                    aria-label={`Rate clarity ${star} of 5`}
+                    aria-pressed={star === learningClarity}
                     className="transition hover:scale-110"
                     style={{ cursor: "pointer" }}
                   >
