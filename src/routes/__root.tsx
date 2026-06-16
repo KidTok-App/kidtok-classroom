@@ -81,25 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "KidTok Classroom" },
-      {
-        name: "description",
-        content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
-      },
       { name: "author", content: "KidTok" },
       { property: "og:site_name", content: "KidTok Classroom" },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "KidTok Classroom" },
-      {
-        property: "og:description",
-        content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
-      },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "KidTok Classroom" },
-      {
-        name: "twitter:description",
-        content: "Multi-agent AI that turns any topic into an animated cartoon for kids 5–8.",
-      },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xkHG1CWJpoebU5Wc5jr6Lo11kjf2/social-images/social-1781189501614-KidTokLogo-text-wbg-2.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xkHG1CWJpoebU5Wc5jr6Lo11kjf2/social-images/social-1781189501614-KidTokLogo-text-wbg-2.webp" },
     ],

@@ -23,13 +23,21 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/self-improvement")({
   head: () => ({
     meta: [
-      { title: "🌱 AI Self-Improvement — KidTok Classroom" },
+      { title: "AI Self-Improvement — KidTok Classroom" },
       {
         name: "description",
         content:
-          "See how our multi-agent AI evaluates itself and refines prompts over time based on parent & developer steering.",
+          "See how our multi-agent AI evaluates itself and refines prompts over time based on parent and developer steering.",
       },
+      { property: "og:title", content: "AI Self-Improvement — KidTok Classroom" },
+      {
+        property: "og:description",
+        content:
+          "Watch the reviewer agent grade every cartoon run and tune the prompts that power KidTok Classroom.",
+      },
+      { property: "og:url", content: "https://kidtokai.com/self-improvement" },
     ],
+    links: [{ rel: "canonical", href: "https://kidtokai.com/self-improvement" }],
   }),
   component: SelfImprovementPage,
 });
