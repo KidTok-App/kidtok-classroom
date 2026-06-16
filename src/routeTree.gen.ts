@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SelfImprovementRouteImport } from './routes/self-improvement'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as AboutRouteImport } from './routes/about'
@@ -19,6 +20,11 @@ import { Route as ApiAgentConfigRouteImport } from './routes/api/agent/config'
 import { Route as ApiAgentPromptsHistoryRouteImport } from './routes/api/agent/prompts/history'
 import { Route as ApiAgentEpisodesIdRouteImport } from './routes/api/agent/episodes.$id'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SelfImprovementRoute = SelfImprovementRouteImport.update({
   id: '/self-improvement',
   path: '/self-improvement',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/self-improvement': typeof SelfImprovementRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/self-improvement': typeof SelfImprovementRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/library': typeof LibraryRoute
   '/self-improvement': typeof SelfImprovementRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/library'
     | '/self-improvement'
+    | '/sitemap.xml'
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/library'
     | '/self-improvement'
+    | '/sitemap.xml'
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/library'
     | '/self-improvement'
+    | '/sitemap.xml'
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   LibraryRoute: typeof LibraryRoute
   SelfImprovementRoute: typeof SelfImprovementRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   EpisodeIdRoute: typeof EpisodeIdRoute
   ApiAgentConfigRoute: typeof ApiAgentConfigRoute
   ApiAgentEpisodesRoute: typeof ApiAgentEpisodesRouteWithChildren
@@ -148,6 +161,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/self-improvement': {
       id: '/self-improvement'
       path: '/self-improvement'
@@ -230,6 +250,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   LibraryRoute: LibraryRoute,
   SelfImprovementRoute: SelfImprovementRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   EpisodeIdRoute: EpisodeIdRoute,
   ApiAgentConfigRoute: ApiAgentConfigRoute,
   ApiAgentEpisodesRoute: ApiAgentEpisodesRouteWithChildren,

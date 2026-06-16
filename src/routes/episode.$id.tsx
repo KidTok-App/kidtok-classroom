@@ -215,6 +215,7 @@ function EpisodePage() {
             <Link to="/" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground mb-4">
               <ArrowLeft className="h-4 w-4" /> New cartoon
             </Link>
+            <h1 className="sr-only">{data.topic} — KidTok Classroom cartoon</h1>
             {playerElement}
             {subtitleElement}
           </div>
