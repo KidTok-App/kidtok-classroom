@@ -487,9 +487,9 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <h3 className="font-extrabold text-lg sm:text-2xl text-foreground flex items-center gap-2">
+            <h2 className="font-extrabold text-lg sm:text-2xl text-foreground flex items-center gap-2">
               {dashboardMode === "parent" ? "🌱 Parent & Kid Learning Insights" : "🔥 Arize Phoenix & MCP Coprocessor Dashboard"}
-            </h3>
+            </h2>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
             {dashboardMode === "parent" 
