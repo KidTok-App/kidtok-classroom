@@ -19,18 +19,21 @@ const OMNI_ALLOWED_EMAIL = "wiktor@kidtok.co";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "KidTok Classroom — Create a learning cartoon" },
+      { title: "KidTok Classroom — AI learning cartoons for kids 5–8" },
       {
         name: "description",
         content:
-          "Type a topic, pick an age, and our multi-agent AI makes an animated educational cartoon for kids 5–8.",
+          "Type a topic, pick an age, and our multi-agent AI makes an animated educational cartoon for kids ages 5 to 8 in minutes.",
       },
-      { property: "og:title", content: "KidTok Classroom" },
+      { property: "og:title", content: "KidTok Classroom — AI learning cartoons for kids 5–8" },
       {
         property: "og:description",
-        content: "Multi-agent AI that turns any topic into an animated cartoon for kids.",
+        content:
+          "Multi-agent AI that turns any topic into a personalized animated cartoon for kids 5–8.",
       },
+      { property: "og:url", content: "https://kidtokai.com/" },
     ],
+    links: [{ rel: "canonical", href: "https://kidtokai.com/" }],
   }),
   component: HomePage,
 });
@@ -287,11 +290,12 @@ function HomePage() {
           </span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.02] tracking-tight mb-5">
+        <h1 className="sr-only">KidTok Classroom — AI-generated learning cartoons for kids ages 5 to 8</h1>
+        <p className="text-4xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.02] tracking-tight mb-5" aria-hidden="true">
           What should we
           <br />
           <span className="text-gradient-primary">learn today?</span>
-        </h1>
+        </p>
 
         <p className="text-base sm:text-lg text-muted-foreground/90 max-w-xl mx-auto mb-10 leading-relaxed">
           Type any topic. Our AI agents write, draw, and narrate an animated cartoon for your
@@ -577,6 +581,7 @@ function HomePage() {
                     disabled={submitting || isLockedOut}
                     aria-pressed={ageBand === age}
                     aria-disabled={isLockedOut}
+                    aria-label={`Select age ${age}`}
                     title={isLockedOut ? `Locked to ${childProfiles[selectedChildIdx!].name}'s age (${lockedAge})` : undefined}
                     className={`h-14 w-14 rounded-2xl font-extrabold text-xl transition-all ${
                       ageBand === age

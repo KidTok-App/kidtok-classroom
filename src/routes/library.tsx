@@ -7,9 +7,21 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/library")({
   head: () => ({
     meta: [
-      { title: "Library — KidTok Classroom" },
-      { name: "description", content: "Browse cartoons you've made." },
+      { title: "Cartoon Library — KidTok Classroom" },
+      {
+        name: "description",
+        content:
+          "Browse and manage your library of AI-generated educational cartoons created for the classroom.",
+      },
+      { property: "og:title", content: "Cartoon Library — KidTok Classroom" },
+      {
+        property: "og:description",
+        content:
+          "Every personalized learning cartoon you've made with KidTok Classroom, in one place.",
+      },
+      { property: "og:url", content: "https://kidtokai.com/library" },
     ],
+    links: [{ rel: "canonical", href: "https://kidtokai.com/library" }],
   }),
   component: LibraryPage,
   errorComponent: ({ error, reset }) => {
