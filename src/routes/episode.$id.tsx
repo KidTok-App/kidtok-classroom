@@ -243,9 +243,9 @@ function EpisodePage() {
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <Zap className="h-6 w-6 animate-pulse" />
               </div>
-              <h3 className="font-extrabold text-xl text-foreground">
+              <h2 className="font-extrabold text-xl text-foreground">
                 🔒 Locked: 🔥 Arize Phoenix & MCP Coprocessor Dashboard
-              </h3>
+              </h2>
               <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
                 Log in with your Google account or use any of the mock developer accounts (e.g., click <strong className="text-accent">Sign in as Ms. Emily</strong> in the top header) to unlock real-time prompt-evolution telemetry, interactive OTel span inspection, and continuous closed-loop cartoon feedback loop controls!
               </p>
