@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SelfImprovementRouteImport } from './routes/self-improvement'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as HowToMakeEducationalCartoonsRouteImport } from './routes/how-to-make-educational-cartoons'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EpisodeIdRouteImport } from './routes/episode.$id'
@@ -35,6 +36,12 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HowToMakeEducationalCartoonsRoute =
+  HowToMakeEducationalCartoonsRouteImport.update({
+    id: '/how-to-make-educational-cartoons',
+    path: '/how-to-make-educational-cartoons',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -74,6 +81,7 @@ const ApiAgentEpisodesIdRoute = ApiAgentEpisodesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/how-to-make-educational-cartoons': typeof HowToMakeEducationalCartoonsRoute
   '/library': typeof LibraryRoute
   '/self-improvement': typeof SelfImprovementRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -86,6 +94,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/how-to-make-educational-cartoons': typeof HowToMakeEducationalCartoonsRoute
   '/library': typeof LibraryRoute
   '/self-improvement': typeof SelfImprovementRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -99,6 +108,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/how-to-make-educational-cartoons': typeof HowToMakeEducationalCartoonsRoute
   '/library': typeof LibraryRoute
   '/self-improvement': typeof SelfImprovementRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/how-to-make-educational-cartoons'
     | '/library'
     | '/self-improvement'
     | '/sitemap.xml'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/how-to-make-educational-cartoons'
     | '/library'
     | '/self-improvement'
     | '/sitemap.xml'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/how-to-make-educational-cartoons'
     | '/library'
     | '/self-improvement'
     | '/sitemap.xml'
@@ -150,6 +163,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  HowToMakeEducationalCartoonsRoute: typeof HowToMakeEducationalCartoonsRoute
   LibraryRoute: typeof LibraryRoute
   SelfImprovementRoute: typeof SelfImprovementRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -180,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-to-make-educational-cartoons': {
+      id: '/how-to-make-educational-cartoons'
+      path: '/how-to-make-educational-cartoons'
+      fullPath: '/how-to-make-educational-cartoons'
+      preLoaderRoute: typeof HowToMakeEducationalCartoonsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -248,6 +269,7 @@ const ApiAgentEpisodesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  HowToMakeEducationalCartoonsRoute: HowToMakeEducationalCartoonsRoute,
   LibraryRoute: LibraryRoute,
   SelfImprovementRoute: SelfImprovementRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
