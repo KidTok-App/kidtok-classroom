@@ -635,7 +635,7 @@ function SelfImprovementPage() {
                         </div>
                         {typeof ep.review?.score === "number" && (
                           <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
-                            {ep.review.score}/10
+                            {ep.review.score}/100
                           </span>
                         )}
                       </li>
