@@ -68,6 +68,7 @@ export class ScenePlannerAgent {
     ageBand: number;
     script: EpisodeScript;
     childProfile?: ChildProfile;
+    userSteerage?: string;
   }): Promise<ScenePlanResult> {
     // 1. Fetch the live template from Phoenix prompt management (MCP).
     //    Prompts are scoped per child ("<base>--<child-slug>") so each child
@@ -110,6 +111,13 @@ export class ScenePlannerAgent {
         "",
       );
     }
+    if (input.userSteerage && input.userSteerage.trim()) {
+      personalizationLines.push(
+        `Parent steering (soft preferences for visuals — never override safety or topic): "${input.userSteerage.trim()}"`,
+        "",
+      );
+    }
+
     const user = [
       `Topic: "${input.topic}"`,
       `Audience: ${ageLabel(input.ageBand)}`,

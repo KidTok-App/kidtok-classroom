@@ -149,7 +149,10 @@ function SelfImprovementPage() {
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [childProfiles, setChildProfiles] = useState<ChildSummary[]>([]);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
-  // Load user steering, child profiles, and episodes
+  // Load user steering, child profiles, and episodes.
+  // Episodes refetch on focus / tab visibility AND poll every ~5s while any
+  // cartoon is still mid-pipeline, so the "Cartoons made" counter ticks up
+  // immediately after generation without a hard refresh.
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("kidtok_user_steerage") || "";
@@ -159,12 +162,33 @@ function SelfImprovementPage() {
     setChildProfiles(profiles);
     setActiveChild(profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null);
 
-    async function loadEpisodes() {
+    if (!user) {
+      setLoadingEpisodes(false);
+      return;
+    }
+
+    let cancelled = false;
+    let pollHandle: ReturnType<typeof setInterval> | null = null;
+    const TERMINAL: Episode["status"][] = ["ready", "failed"];
+
+    const refresh = async () => {
       try {
         const list = await listEpisodes();
-        setEpisodes(Array.isArray(list) ? list : []);
+        if (cancelled) return;
+        const next = Array.isArray(list) ? list : [];
+        setEpisodes(next);
         setEpisodesError(null);
+        const hasInFlight = next.some((e) => !TERMINAL.includes(e.status));
+        if (hasInFlight && !pollHandle) {
+          pollHandle = setInterval(() => {
+            void refresh();
+          }, 5000);
+        } else if (!hasInFlight && pollHandle) {
+          clearInterval(pollHandle);
+          pollHandle = null;
+        }
       } catch (err) {
+        if (cancelled) return;
         console.error("Error fetching episodes:", err);
         const msg = err instanceof Error ? err.message : String(err);
         setEpisodesError(
@@ -173,10 +197,25 @@ function SelfImprovementPage() {
             : "Couldn't load your cartoons just now. Try again in a moment."
         );
       } finally {
-        setLoadingEpisodes(false);
+        if (!cancelled) setLoadingEpisodes(false);
       }
-    }
-    void loadEpisodes();
+    };
+
+    void refresh();
+
+    const onFocus = () => void refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      if (pollHandle) clearInterval(pollHandle);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [user?.id]);
 
   // (Re)load prompt history scoped to the selected child
