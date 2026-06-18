@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { 
   Sparkles, 
@@ -19,6 +20,8 @@ import {
 } from "lucide-react";
 import { getPromptHistory, PromptHistoryItem, listEpisodes, Episode } from "@/lib/agentApi";
 import { useAuth } from "@/lib/auth";
+import { listChildProfiles, getUserPreferences } from "@/lib/profiles.functions";
+import { getInsights, saveInsights } from "@/lib/insights.functions";
 
 export const Route = createFileRoute("/self-improvement")({
   head: () => ({
@@ -149,16 +152,20 @@ function SelfImprovementPage() {
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [childProfiles, setChildProfiles] = useState<ChildSummary[]>([]);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
-  // Load user steering, child profiles, and episodes.
-  // Episodes refetch on focus / tab visibility AND poll every ~5s while any
-  // cartoon is still mid-pipeline, so the "Cartoons made" counter ticks up
-  // immediately after generation without a hard refresh.
-  useEffect(() => {
-    const { profiles, lastName } = loadChildProfiles(user?.id);
-    setChildProfiles(profiles);
-    setActiveChild(profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null);
+  const listProfilesFn = useServerFn(listChildProfiles);
+  const getPrefsFn = useServerFn(getUserPreferences);
+  const getInsightsFn = useServerFn(getInsights);
+  const saveInsightsFn = useServerFn(saveInsights);
 
+  // Load child profiles + episodes. Profiles come from Cloud for signed-in
+  // users (with a fallback to legacy localStorage when Cloud is unreachable).
+  // Episodes refetch on focus/visibility AND poll every ~5s while any cartoon
+  // is mid-pipeline so the counter ticks up without a hard refresh.
+  useEffect(() => {
     if (!user) {
+      const { profiles, lastName } = loadChildProfiles(undefined);
+      setChildProfiles(profiles);
+      setActiveChild(profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null);
       setLoadingEpisodes(false);
       return;
     }
@@ -166,6 +173,29 @@ function SelfImprovementPage() {
     let cancelled = false;
     let pollHandle: ReturnType<typeof setInterval> | null = null;
     const TERMINAL: Episode["status"][] = ["ready", "failed"];
+
+    const loadProfiles = async () => {
+      try {
+        const [profiles, prefs] = await Promise.all([
+          listProfilesFn(),
+          getPrefsFn(),
+        ]);
+        if (cancelled) return;
+        setChildProfiles(profiles);
+        const last = prefs.lastSelectedChild;
+        setActiveChild(
+          profiles.find((p) => p.name === last) ?? profiles[0] ?? null,
+        );
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Failed to load child profiles from Cloud:", err);
+        const { profiles, lastName } = loadChildProfiles(user.id);
+        setChildProfiles(profiles);
+        setActiveChild(
+          profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null,
+        );
+      }
+    };
 
     const refresh = async () => {
       try {
@@ -197,6 +227,7 @@ function SelfImprovementPage() {
       }
     };
 
+    void loadProfiles();
     void refresh();
 
     const onFocus = () => void refresh();
@@ -212,28 +243,33 @@ function SelfImprovementPage() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Per-child steerage key. Falls back to a per-user "default" bucket when
-  // no specific child is active, so the textarea always reflects whatever
-  // will actually be sent with the next generation.
-  const steerageKey = `kidtok_user_steerage:${user?.id ?? "guest"}:${activeChild?.name?.trim() || "default"}`;
-
-  // Reload steerage from per-child storage whenever active child changes.
-  // Also migrates the legacy single global key into this user's default bucket
-  // so existing users don't appear to "lose" their saved insights.
+  // Reload insights from Cloud whenever the active child changes so the
+  // textarea always shows the insights that will actually be sent with the
+  // next generation.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const legacy = localStorage.getItem("kidtok_user_steerage");
-    if (legacy && user?.id) {
-      const defaultKey = `kidtok_user_steerage:${user.id}:default`;
-      if (!localStorage.getItem(defaultKey)) {
-        localStorage.setItem(defaultKey, legacy);
+    if (!user) {
+      const key = `kidtok_user_steerage:guest:${activeChild?.name?.trim() || "default"}`;
+      if (typeof window !== "undefined") {
+        setUserSteerage(localStorage.getItem(key) || "");
       }
-      localStorage.removeItem("kidtok_user_steerage");
+      return;
     }
-    setUserSteerage(localStorage.getItem(steerageKey) || "");
-  }, [steerageKey, user?.id]);
+    let cancelled = false;
+    getInsightsFn({ data: { childName: activeChild?.name ?? null } })
+      .then((res) => {
+        if (!cancelled) setUserSteerage(res.insightsText);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("Failed to load insights:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, activeChild?.name]);
 
   // (Re)load prompt history scoped to the selected child
   useEffect(() => {

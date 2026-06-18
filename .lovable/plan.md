@@ -1,65 +1,144 @@
-## What's actually going on
+## Goal
 
-There are no broken edge functions here. This app doesn't use Supabase edge functions for the agent pipeline — cartoons go through the external `agent-service` (its `/api/agent/*` routes), and the "Save Active Steering" button doesn't talk to any backend at all. The two symptoms you saw have separate causes:
+Move the local-only pieces of KidTok Classroom into Lovable Cloud so each parent's child profiles, insights, and cartoon library follow them across devices/browsers, and make sure every Phoenix-driven self-improvement (reviewer score → prompt revision) is preserved per-child and shared across all signed-in users on the same instance.
 
-### 1. "100/10" badge (and a weird average)
+## Two systems, two stores — both stay
 
-The reviewer agent in `agent-service/src/agents/QualityReviewerAgent.ts` produces a score on a **0–100 scale** (`clamp(score, 0, 100)` at line 177; starts at 100 and subtracts penalties). The UI in `src/routes/self-improvement.tsx` hardcodes `/10`:
+- **Lovable Cloud (Supabase)** owns *user-owned* data: child profiles, per-child insights, episode index, optional saved-cartoon library.
+- **Arize Phoenix** stays the source of truth for *prompt evolution*: every reviewer-proposed prompt revision is published to a versioned prompt in Phoenix, retrievable by name. Cloud does NOT duplicate this — it just records which Phoenix `promptVersionUsed` produced each episode so the UI can show "this cartoon was made with prompt v7".
 
-- line 500: `${avgScore}/10` (avg of 0–100 numbers, still labeled `/10`)
-- line 616: `{ep.review.score}/10` → renders as `100/10`
+This split matches what's already half-built: Phoenix handles prompt history (`agent-service/src/clients/phoenixMcp.ts`, `server.ts:248`), and the agent service already writes `review.promptVersionUsed` onto each episode.
 
-Backend is the source of truth (notes already reference sub-scores like "8/10" for alignment, which is a different sub-metric). Fix is display-side: present review scores on a 0–100 scale.
+## Phase 1 — Schema (one migration)
 
-### 2. "Cartoons made = 0" after selecting a child
+After Cloud is enabled, add four tables, all RLS-scoped to the signed-in parent.
 
-The counter does NOT count insights — it counts episodes whose stored `childProfile.name` matches the selected child (self-improvement.tsx lines 244–248). Episodes only get `childProfile` attached if a child was selected at generation time (index.tsx line 258). So:
+```sql
+-- 1. child_profiles: replaces kidtok_child_profiles localStorage key
+create table public.child_profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  age_band int not null,
+  interests text not null default '',
+  art_style text not null default 'crayon sketch',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, name)
+);
 
-- Cartoons you generated before you had a child profile, or while "no child" was selected, were saved with `childProfile = undefined` and never match a per-child filter. They only appear under "All cartoons".
-- Saving steering (the "Insights" textarea) has zero effect on this counter — steering is stored in `localStorage` under a single global key `kidtok_user_steerage`, not per-child, and is not a counted entity. The "Saved!" toast is truthful about the localStorage write but misleading about what it does.
+-- 2. child_insights: replaces kidtok_user_steerage localStorage key
+create table public.child_insights (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  child_name text,                       -- null = parent's "default" bucket
+  insights_text text not null default '',
+  updated_at timestamptz not null default now(),
+  unique (user_id, child_name)
+);
 
-This is a UX/data-attribution bug, not a database read bug. There is no row in any DB for "insights per child" today.
+-- 3. user_preferences: small KV for things like last_selected_child
+create table public.user_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  last_selected_child text,
+  updated_at timestamptz not null default now()
+);
 
-## Fix
+-- 4. episodes_index: thin pointer from a user to their agent-service episodes.
+--    The cartoon itself stays in agent-service (Mongo/whatever it uses today);
+--    this table only records ownership + the Phoenix prompt version used,
+--    so listEpisodes() can be a proper user-scoped query instead of "trust the
+--    backend's auth header".
+create table public.episodes_index (
+  episode_id text primary key,           -- agent-service id
+  user_id uuid not null references auth.users(id) on delete cascade,
+  child_name text,
+  topic text not null,
+  age_band int not null,
+  status text not null,
+  prompt_version_used text,              -- Phoenix version, e.g. "v7"
+  review_score int,                      -- 0-100
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index on public.episodes_index (user_id, created_at desc);
+create index on public.episodes_index (user_id, child_name);
+```
 
-### A. Reviewer score display (small, surgical — `src/routes/self-improvement.tsx`)
+GRANTs + RLS for each (canonical pattern — `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated`, `GRANT ALL … TO service_role`, RLS policies scoped to `auth.uid() = user_id`). No `anon` grants — everything is parent-owned.
 
-1. Line 500 "Reviewer score" card: render `${avgScore}/100`. Recompute `avgScore` rounding against the 0–100 scale (already correct math; just relabel).
-2. Line 616 recent-cartoons badge: render `{ep.review.score}/100`.
-3. Update the helper copy on the score card ("Our reviewer agent rates each finished cartoon…") to mention "out of 100" so parents read it correctly.
+A small `update_updated_at` trigger on the three tables that have `updated_at`.
 
-No backend change. Sub-metric mentions like "Alignment scored 8/10" inside reviewer notes stay as-is — those are genuinely 0–10 sub-scores.
+## Phase 2 — Server functions (TanStack `createServerFn`, NOT edge functions)
 
-### B. Per-child insights (so "saved" actually means something)
+All in `src/lib/` so they're client-safe to import. Each uses `requireSupabaseAuth`.
 
-Right now steering is a single global string. Make it per-child so it shows up where you expect:
+- `src/lib/profiles.functions.ts`
+  - `listChildProfiles()`
+  - `upsertChildProfile({ name, ageBand, interests, artStyle })`
+  - `deleteChildProfile({ name })`
+  - `setLastSelectedChild({ name | null })`
+  - `getLastSelectedChild()`
+- `src/lib/insights.functions.ts`
+  - `getInsights({ childName? })` — returns `{ insights_text }` for that child or the user's default bucket
+  - `saveInsights({ childName?, insightsText })`
+- `src/lib/episodes-index.functions.ts`
+  - `listMyEpisodes()` — returns rows joined with a fresh agent-service fetch for status/review
+  - `recordEpisode({ episodeId, childName, topic, ageBand })` — called immediately after `createEpisode` resolves so a row exists even before generation finishes
+  - `updateEpisodeStatus({ episodeId, status, promptVersionUsed?, reviewScore? })` — called by the agent-service webhook (next phase)
 
-1. **Storage key becomes per-child** in self-improvement.tsx `saveSteerage` and the load `useEffect`:
-   - `kidtok_user_steerage:<userId>:<childName>` when a child is active.
-   - Fall back to a `…:default` key when "All cartoons" is selected.
-   - On `activeChild` change, reload the textarea from the matching key.
-2. **`index.tsx` reads the same per-child key** when building `storedSteerage`, using the currently selected child profile. Falls back to the default key if none.
-3. **Toast copy** updates to "Saved insights for {child.name}. Cartoons made for {child.name} will use them." so the message reflects the actual scope.
-4. **(Optional, behind the same edit)** Surface a small "Insights on file for {child.name}" line on the active-child banner (self-improvement.tsx around line 444) so the parent can see at a glance that something is persisted, separate from the cartoon counter.
+## Phase 3 — Agent service → Cloud bridge for the self-improvement loop
 
-This stays localStorage-only — no DB schema change, no edge function. The agent backend already accepts `userSteerage` per-episode and now feeds it into `ScriptAgent` / `ScenePlannerAgent`, so per-child steering will visibly steer the next cartoon for that child.
+So Phoenix improvements are remembered cross-user, the agent service has to tell Cloud which prompt version produced each finished cartoon. Today it writes that into its own episode doc only.
 
-### C. Clarify the counter (tiny copy change, no logic change)
+Add one public webhook in this repo:
 
-In the "Cartoons made" card (around line 487), when `totalForChild === 0` and `activeChild` is set, say:
+- `src/routes/api/public/agent-webhook.ts` — HMAC-verified (`AGENT_WEBHOOK_SECRET`), accepts `{ episodeId, userId, status, promptVersionUsed, reviewScore }` and upserts into `episodes_index` via `supabaseAdmin`. Loaded inside the handler (`await import('@/integrations/supabase/client.server')`).
 
-> "No cartoons tagged for {child.name} yet. Make a new one with {child.name} selected and it'll show up here." 
+In `agent-service/src/agents/QualityReviewerAgent.ts`, after `store.update(...)` succeeds, POST to that webhook with the HMAC signature. Failure to POST does not fail the cartoon — it logs and retries with a small in-process backoff.
 
-So it's obvious the counter tracks generations, not saved insights, and that older untagged cartoons live under "All cartoons".
+Net effect: every prompt revision the reviewer pushes to Phoenix is already global by virtue of Phoenix being a shared service; the webhook just makes it visible in the per-user UI ("your last cartoon for Mila used prompt v8, which the reviewer just improved to v9").
 
-## Out of scope (intentionally)
+## Phase 4 — Wire the frontend off localStorage
 
-- No migration of historical untagged episodes onto a child — that would require backend changes and risks mis-tagging. If you want that later, the right move is a one-off `PATCH /api/agent/episodes/:id` (already exists via `updateEpisodeChild`) triggered from the library page.
-- No move of insights into the database. If you want insights to be cross-device per child, that's a separate, larger change (new table + GRANTs + RLS + a server fn). Say the word and I'll plan it.
+Convert the three reads/writes in `src/routes/index.tsx` and `src/routes/self-improvement.tsx`:
 
-## Verification
+- Child profiles list and "last selected" → `useQuery(profilesQueryOptions)` from `listChildProfiles` + `getLastSelectedChild`.
+- Insights textarea → `useQuery` on `getInsights({ childName })`, `useMutation` on `saveInsights`.
+- Episodes list on Self-Improvement → `listMyEpisodes` (which calls the agent service internally and merges with `episodes_index`).
 
-- Generate a cartoon with a child selected → counter for that child increments within ~5s (existing polling).
-- Open a finished cartoon → score badge reads `<n>/100`, average card matches.
-- Save insights with child A selected, switch to child B → textarea is empty (or shows B's own text), confirming per-child scoping. Switching back to A restores A's text.
-- Generate a new cartoon for child A → its narration/visuals reflect A's saved insights (already wired through ScriptAgent/ScenePlannerAgent from the previous fix).
+Each `useEffect` that currently calls `localStorage.getItem/setItem` for these keys gets deleted. The existing polling + focus refresh stay, but now hit the server fn.
+
+**One-time client-side migration** (runs once per device, behind a `kidtok_cloud_migrated:<userId>` flag): on first authenticated load, push any local `kidtok_child_profiles:<userId>`, `kidtok_user_steerage:*` keys into Cloud via the new mutations, then delete the local keys. This means existing users don't lose anything.
+
+## Phase 5 — Phoenix configuration sanity check
+
+The agent service already speaks Phoenix MCP. For the self-improvement loop to work in deployed Cloud:
+
+- `agent-service` env in production needs `PHOENIX_HOST`, `PHOENIX_API_KEY` (already supported per `phoenixMcp.ts:148-149`).
+- Prompt scoping (`agent-service/src/lib/promptScoping.ts`) is already child-aware — confirm the per-child name (`kidtok-scene-prompt--<slug>`) matches what `getPromptHistory` queries in the Self-Improvement UI. No code change expected, just verification.
+- Add a small "Phoenix status" line to the Developer view of `self-improvement.tsx` that surfaces `getPromptHistory().length` so it's obvious the connection is live.
+
+## Phase 6 — Verification
+
+1. Sign in on browser A, add child "Mila", save insights, generate cartoon → see counter increment.
+2. Sign in same account on browser B → child "Mila" and her insights appear with no localStorage involvement.
+3. Generate cartoon for Mila on B → reviewer pushes a new Phoenix prompt version; both browsers see the new "Latest tune · v<n>" entry within 5s (polling already in place).
+4. Sign in as a different parent → child list and insights are empty (RLS confirmed); but if they generate a cartoon, the Phoenix prompts already evolved by parent #1 (global versions) are what scripts/scene-planner use — i.e. the cross-user "memory" of self-improvement works.
+5. Hit `/api/public/agent-webhook` without a signature → 401. With a bad signature → 401. With a valid signature → row upsert.
+
+## Out of scope (explicit)
+
+- Moving the cartoon media itself off the agent service. Not needed for the request; would be a separate, much larger migration.
+- Replacing Phoenix with a Cloud-native prompt registry. Phoenix already gives us versioned prompts + scoring loop; building a parallel one in Cloud would just create drift.
+- Per-user OAuth for Phoenix. The agent service uses a single workspace Phoenix instance — prompt evolution is intentionally shared across users so every parent benefits from every reviewer pass.
+
+## Order of work once Cloud is enabled
+
+1. Confirm Cloud enabled, then run the Phase-1 migration.
+2. Ship server fns (Phase 2). No UI yet — just deploy and smoke-test.
+3. Add the webhook + agent-service POST (Phase 3). Verify with a single test cartoon.
+4. Switch the two routes off localStorage with the migration shim (Phase 4).
+5. Verify against the Phase-6 checklist.
+
+Tell me when Cloud is enabled and I'll run step 1.
