@@ -98,6 +98,7 @@ export class ClassroomOrchestrator {
                 topic: doc.topic,
                 ageBand: doc.ageBand,
                 childProfile: doc.childProfile,
+                userSteerage: doc.userSteerage,
               }),
             );
 
@@ -110,6 +111,7 @@ export class ClassroomOrchestrator {
                 ageBand: doc.ageBand,
                 script: scriptOut.script,
                 childProfile: doc.childProfile,
+                userSteerage: doc.userSteerage,
               }),
             );
 
@@ -203,6 +205,7 @@ Ensure you explicitly describe:
               topic: doc.topic,
               ageBand: doc.ageBand,
               childProfile: doc.childProfile,
+              userSteerage: doc.userSteerage,
             }),
           );
 
@@ -215,6 +218,7 @@ Ensure you explicitly describe:
               ageBand: doc.ageBand,
               script: scriptOut.script,
               childProfile: doc.childProfile,
+              userSteerage: doc.userSteerage,
             }),
           );
 
