@@ -285,11 +285,16 @@ function SelfImprovementPage() {
   const saveSteerage = () => {
     setSavingSteerage(true);
     if (typeof window !== "undefined") {
-      localStorage.setItem("kidtok_user_steerage", userSteerage);
+      localStorage.setItem(steerageKey, userSteerage);
     }
+    const who = activeChild?.name;
     setTimeout(() => {
       setSavingSteerage(false);
-      toast.success("Active steering parameters saved! Next generations will adapt.");
+      toast.success(
+        who
+          ? `Saved insights for ${who}. Next cartoons made for ${who} will use them.`
+          : "Saved default insights. Next cartoons without a child selected will use them."
+      );
     }, 400);
   };
 
