@@ -262,7 +262,7 @@ function HomePage() {
         topic: t, 
         ageBand, 
         generationMode: effectiveMode,
-        userSteerage: canUseOmni ? (storedSteerage || undefined) : undefined,
+        userSteerage: storedSteerage || undefined,
         childProfile
       });
       navigate({ to: "/episode/$id", params: { id } });
