@@ -240,12 +240,6 @@ function HomePage() {
     const effectiveMode = generationMode === "video" && !canUseOmni ? "slides" : generationMode;
     setSubmitting(true);
 
-    // Retrieve active steering constraints from local storage (set on Self-Improvement page)
-    let storedSteerage = "";
-    if (typeof window !== "undefined") {
-      storedSteerage = localStorage.getItem("kidtok_user_steerage") || "";
-    }
-
     let effectiveChildIdx = selectedChildIdx;
     if (effectiveChildIdx === null && childProfiles.length === 1) {
       effectiveChildIdx = 0;
@@ -256,6 +250,22 @@ function HomePage() {
       return;
     }
     const childProfile = effectiveChildIdx !== null ? childProfiles[effectiveChildIdx] : undefined;
+
+    // Retrieve per-child steering insights saved on the Self-Improvement page.
+    // Falls back to the user's default bucket, then to the legacy global key.
+    let storedSteerage = "";
+    if (typeof window !== "undefined") {
+      const scope = user?.id ?? "guest";
+      const childKey = childProfile
+        ? `kidtok_user_steerage:${scope}:${childProfile.name.trim()}`
+        : null;
+      const defaultKey = `kidtok_user_steerage:${scope}:default`;
+      storedSteerage =
+        (childKey && localStorage.getItem(childKey)) ||
+        localStorage.getItem(defaultKey) ||
+        localStorage.getItem("kidtok_user_steerage") ||
+        "";
+    }
 
     try {
       const { id } = await createEpisode({ 

@@ -154,10 +154,6 @@ function SelfImprovementPage() {
   // cartoon is still mid-pipeline, so the "Cartoons made" counter ticks up
   // immediately after generation without a hard refresh.
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("kidtok_user_steerage") || "";
-      setUserSteerage(stored);
-    }
     const { profiles, lastName } = loadChildProfiles(user?.id);
     setChildProfiles(profiles);
     setActiveChild(profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null);
@@ -218,6 +214,27 @@ function SelfImprovementPage() {
     };
   }, [user?.id]);
 
+  // Per-child steerage key. Falls back to a per-user "default" bucket when
+  // no specific child is active, so the textarea always reflects whatever
+  // will actually be sent with the next generation.
+  const steerageKey = `kidtok_user_steerage:${user?.id ?? "guest"}:${activeChild?.name?.trim() || "default"}`;
+
+  // Reload steerage from per-child storage whenever active child changes.
+  // Also migrates the legacy single global key into this user's default bucket
+  // so existing users don't appear to "lose" their saved insights.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const legacy = localStorage.getItem("kidtok_user_steerage");
+    if (legacy && user?.id) {
+      const defaultKey = `kidtok_user_steerage:${user.id}:default`;
+      if (!localStorage.getItem(defaultKey)) {
+        localStorage.setItem(defaultKey, legacy);
+      }
+      localStorage.removeItem("kidtok_user_steerage");
+    }
+    setUserSteerage(localStorage.getItem(steerageKey) || "");
+  }, [steerageKey, user?.id]);
+
   // (Re)load prompt history scoped to the selected child
   useEffect(() => {
     let cancelled = false;
@@ -268,11 +285,16 @@ function SelfImprovementPage() {
   const saveSteerage = () => {
     setSavingSteerage(true);
     if (typeof window !== "undefined") {
-      localStorage.setItem("kidtok_user_steerage", userSteerage);
+      localStorage.setItem(steerageKey, userSteerage);
     }
+    const who = activeChild?.name;
     setTimeout(() => {
       setSavingSteerage(false);
-      toast.success("Active steering parameters saved! Next generations will adapt.");
+      toast.success(
+        who
+          ? `Saved insights for ${who}. Next cartoons made for ${who} will use them.`
+          : "Saved default insights. Next cartoons without a child selected will use them."
+      );
     }, 400);
   };
 
@@ -486,7 +508,9 @@ function SelfImprovementPage() {
               </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
                 {totalForChild === 0
-                  ? "Make a cartoon on the home page — insights appear here as soon as the first one finishes."
+                  ? activeChild
+                    ? `No cartoons tagged for ${activeChild.name} yet. Make a new one with ${activeChild.name} selected and it'll show up here. Older untagged cartoons live under "All cartoons".`
+                    : "Make a cartoon on the home page — insights appear here as soon as the first one finishes."
                   : `${readyEpisodes.length} ready to watch${failedEpisodes.length > 0 ? `, ${failedEpisodes.length} retried` : ""}.`}
               </p>
             </div>
@@ -497,11 +521,11 @@ function SelfImprovementPage() {
               </div>
               <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Reviewer score</p>
               <h3 className="text-4xl font-extrabold text-gradient-primary mt-1">
-                {avgScore !== null ? `${avgScore}/10` : "—"}
+                {avgScore !== null ? `${avgScore}/100` : "—"}
               </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
                 {avgScore === null
-                  ? "Our reviewer agent rates each finished cartoon. Scores show up after the first review."
+                  ? "Our reviewer agent rates each finished cartoon out of 100. Scores show up after the first review."
                   : `Average across ${reviewedEpisodes.length} reviewed cartoon${reviewedEpisodes.length === 1 ? "" : "s"} for ${activeChild?.name ?? "your account"}.`}
               </p>
             </div>
@@ -613,7 +637,7 @@ function SelfImprovementPage() {
                         </div>
                         {typeof ep.review?.score === "number" && (
                           <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-1 rounded-full shrink-0">
-                            {ep.review.score}/10
+                            {ep.review.score}/100
                           </span>
                         )}
                       </li>
