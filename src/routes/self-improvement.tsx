@@ -508,7 +508,9 @@ function SelfImprovementPage() {
               </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
                 {totalForChild === 0
-                  ? "Make a cartoon on the home page — insights appear here as soon as the first one finishes."
+                  ? activeChild
+                    ? `No cartoons tagged for ${activeChild.name} yet. Make a new one with ${activeChild.name} selected and it'll show up here. Older untagged cartoons live under "All cartoons".`
+                    : "Make a cartoon on the home page — insights appear here as soon as the first one finishes."
                   : `${readyEpisodes.length} ready to watch${failedEpisodes.length > 0 ? `, ${failedEpisodes.length} retried` : ""}.`}
               </p>
             </div>
