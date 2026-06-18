@@ -318,20 +318,32 @@ function SelfImprovementPage() {
     ? promptHistory[promptHistory.length - 1]
     : null;
 
-  const saveSteerage = () => {
+  const saveSteerage = async () => {
     setSavingSteerage(true);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(steerageKey, userSteerage);
-    }
     const who = activeChild?.name;
-    setTimeout(() => {
-      setSavingSteerage(false);
+    try {
+      if (user) {
+        await saveInsightsFn({
+          data: {
+            childName: activeChild?.name ?? null,
+            insightsText: userSteerage,
+          },
+        });
+      } else if (typeof window !== "undefined") {
+        const key = `kidtok_user_steerage:guest:${activeChild?.name?.trim() || "default"}`;
+        localStorage.setItem(key, userSteerage);
+      }
       toast.success(
         who
           ? `Saved insights for ${who}. Next cartoons made for ${who} will use them.`
           : "Saved default insights. Next cartoons without a child selected will use them."
       );
-    }, 400);
+    } catch (err) {
+      console.error("Failed to save insights:", err);
+      toast.error("Couldn't save insights. Try again in a moment.");
+    } finally {
+      setSavingSteerage(false);
+    }
   };
 
   const getDiffMarkup = () => {
