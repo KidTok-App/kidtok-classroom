@@ -154,10 +154,6 @@ function SelfImprovementPage() {
   // cartoon is still mid-pipeline, so the "Cartoons made" counter ticks up
   // immediately after generation without a hard refresh.
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("kidtok_user_steerage") || "";
-      setUserSteerage(stored);
-    }
     const { profiles, lastName } = loadChildProfiles(user?.id);
     setChildProfiles(profiles);
     setActiveChild(profiles.find((p) => p.name === lastName) ?? profiles[0] ?? null);
@@ -217,6 +213,27 @@ function SelfImprovementPage() {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [user?.id]);
+
+  // Per-child steerage key. Falls back to a per-user "default" bucket when
+  // no specific child is active, so the textarea always reflects whatever
+  // will actually be sent with the next generation.
+  const steerageKey = `kidtok_user_steerage:${user?.id ?? "guest"}:${activeChild?.name?.trim() || "default"}`;
+
+  // Reload steerage from per-child storage whenever active child changes.
+  // Also migrates the legacy single global key into this user's default bucket
+  // so existing users don't appear to "lose" their saved insights.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const legacy = localStorage.getItem("kidtok_user_steerage");
+    if (legacy && user?.id) {
+      const defaultKey = `kidtok_user_steerage:${user.id}:default`;
+      if (!localStorage.getItem(defaultKey)) {
+        localStorage.setItem(defaultKey, legacy);
+      }
+      localStorage.removeItem("kidtok_user_steerage");
+    }
+    setUserSteerage(localStorage.getItem(steerageKey) || "");
+  }, [steerageKey, user?.id]);
 
   // (Re)load prompt history scoped to the selected child
   useEffect(() => {
