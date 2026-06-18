@@ -519,11 +519,11 @@ function SelfImprovementPage() {
               </div>
               <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Reviewer score</p>
               <h3 className="text-4xl font-extrabold text-gradient-primary mt-1">
-                {avgScore !== null ? `${avgScore}/10` : "—"}
+                {avgScore !== null ? `${avgScore}/100` : "—"}
               </h3>
               <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">
                 {avgScore === null
-                  ? "Our reviewer agent rates each finished cartoon. Scores show up after the first review."
+                  ? "Our reviewer agent rates each finished cartoon out of 100. Scores show up after the first review."
                   : `Average across ${reviewedEpisodes.length} reviewed cartoon${reviewedEpisodes.length === 1 ? "" : "s"} for ${activeChild?.name ?? "your account"}.`}
               </p>
             </div>
