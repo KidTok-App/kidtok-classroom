@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile, LogIn, Lock } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
 import { StarSparkle } from "@/components/StarSparkle";
 import { useAuth } from "@/lib/auth";
+import {
+  listChildProfiles,
+  upsertChildProfile,
+  deleteChildProfile as deleteChildProfileFn,
+  setLastSelectedChild,
+  getUserPreferences,
+} from "@/lib/profiles.functions";
+import { getInsights } from "@/lib/insights.functions";
+import { recordEpisode } from "@/lib/episodes-index.functions";
 import {
   Dialog,
   DialogContent,
@@ -93,51 +103,131 @@ function HomePage() {
   const profilesKey = `kidtok_child_profiles:${storageScope}`;
   const lastSelectedKey = `kidtok_last_child_profile:${storageScope}`;
 
-  // Load Child Profiles whenever the active user changes
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const listProfilesFn = useServerFn(listChildProfiles);
+  const upsertProfileFn = useServerFn(upsertChildProfile);
+  const deleteProfileFn = useServerFn(deleteChildProfileFn);
+  const setLastChildFn = useServerFn(setLastSelectedChild);
+  const getPrefsFn = useServerFn(getUserPreferences);
+  const getInsightsFn = useServerFn(getInsights);
+  const recordEpisodeFn = useServerFn(recordEpisode);
 
-    const stored = localStorage.getItem(profilesKey);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setChildProfiles(parsed);
-          if (parsed.length === 0) {
-            setSelectedChildIdx(null);
+  // Hydrate profiles. Signed-in users read from Cloud (with a one-time
+  // migration of any pre-existing localStorage rows). Guests still use
+  // localStorage so the home page works without an account.
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateFromLocal = () => {
+      if (typeof window === "undefined") return;
+      const stored = localStorage.getItem(profilesKey);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setChildProfiles(parsed);
+            if (parsed.length === 0) {
+              setSelectedChildIdx(null);
+              return;
+            }
+            const lastSelected = localStorage.getItem(lastSelectedKey);
+            const idx = parsed.findIndex((p: any) => p.name === lastSelected);
+            if (idx !== -1) {
+              setSelectedChildIdx(idx);
+              setAgeBand(parsed[idx].ageBand);
+            } else {
+              setSelectedChildIdx(0);
+              setAgeBand(parsed[0].ageBand);
+            }
             return;
           }
-          const lastSelected = localStorage.getItem(lastSelectedKey);
-          const idx = parsed.findIndex((p: any) => p.name === lastSelected);
-          if (idx !== -1) {
-            setSelectedChildIdx(idx);
-            setAgeBand(parsed[idx].ageBand);
-          } else {
-            setSelectedChildIdx(0);
-            setAgeBand(parsed[0].ageBand);
+        } catch (e) {
+          console.error("Failed to parse child profiles", e);
+        }
+      }
+      if (isMockUser) {
+        setChildProfiles(DEFAULT_PROFILES);
+        setSelectedChildIdx(0);
+        setAgeBand(DEFAULT_PROFILES[0].ageBand);
+      } else {
+        setChildProfiles([]);
+        setSelectedChildIdx(null);
+      }
+    };
+
+    if (!user) {
+      hydrateFromLocal();
+      return;
+    }
+
+    const run = async () => {
+      try {
+        // One-time migration: push any leftover localStorage profiles into Cloud.
+        const migratedFlag = `kidtok_cloud_migrated:${user.id}`;
+        if (typeof window !== "undefined" && !localStorage.getItem(migratedFlag)) {
+          const stored = localStorage.getItem(profilesKey);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                for (const p of parsed) {
+                  if (!p?.name) continue;
+                  await upsertProfileFn({
+                    data: {
+                      name: String(p.name),
+                      ageBand: Number(p.ageBand ?? 6),
+                      interests: String(p.interests ?? ""),
+                      artStyle: String(p.artStyle ?? "crayon sketch"),
+                    },
+                  });
+                }
+              }
+            } catch {
+              /* ignore */
+            }
           }
+          localStorage.setItem(migratedFlag, "1");
+        }
+
+        const [profiles, prefs] = await Promise.all([
+          listProfilesFn(),
+          getPrefsFn(),
+        ]);
+        if (cancelled) return;
+
+        let next = profiles;
+        if (next.length === 0 && isMockUser) {
+          // Seed Zosia for demo accounts on first run.
+          await upsertProfileFn({ data: DEFAULT_PROFILES[0] });
+          next = await listProfilesFn();
+        }
+        setChildProfiles(next);
+        if (next.length === 0) {
+          setSelectedChildIdx(null);
           return;
         }
-      } catch (e) {
-        console.error("Failed to parse child profiles", e);
+        const last = prefs.lastSelectedChild;
+        const idx = last ? next.findIndex((p) => p.name === last) : -1;
+        if (idx !== -1) {
+          setSelectedChildIdx(idx);
+          setAgeBand(next[idx].ageBand);
+        } else {
+          setSelectedChildIdx(0);
+          setAgeBand(next[0].ageBand);
+        }
+      } catch (err) {
+        console.error("Failed to load child profiles from Cloud:", err);
+        hydrateFromLocal();
       }
-    }
+    };
 
-    // No stored profiles yet for this account.
-    // Seed the Zosia demo profile ONLY for the dev/demo accounts so judges
-    // see a populated example; real users start with an empty carousel.
-    if (isMockUser) {
-      setChildProfiles(DEFAULT_PROFILES);
-      setSelectedChildIdx(0);
-      setAgeBand(DEFAULT_PROFILES[0].ageBand);
-    } else {
-      setChildProfiles([]);
-      setSelectedChildIdx(null);
-    }
-  }, [profilesKey, lastSelectedKey, isMockUser]);
+    void run();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isMockUser]);
 
-  const saveProfilesToStorage = (profiles: ChildProfile[]) => {
-    setChildProfiles(profiles);
+  const persistProfileLocalFallback = (profiles: ChildProfile[]) => {
     if (typeof window !== "undefined") {
       localStorage.setItem(profilesKey, JSON.stringify(profiles));
     }
@@ -146,15 +236,18 @@ function HomePage() {
   const selectChild = (idx: number) => {
     setSelectedChildIdx(idx);
     const child = childProfiles[idx];
-    if (child) {
-      setAgeBand(child.ageBand);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(lastSelectedKey, child.name);
-      }
+    if (!child) return;
+    setAgeBand(child.ageBand);
+    if (user) {
+      void setLastChildFn({ data: { name: child.name } }).catch((err) =>
+        console.error("setLastSelectedChild failed:", err)
+      );
+    } else if (typeof window !== "undefined") {
+      localStorage.setItem(lastSelectedKey, child.name);
     }
   };
 
-  const handleAddChild = (e: React.FormEvent) => {
+  const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) {
       toast.error("Please enter a name!");
@@ -172,11 +265,24 @@ function HomePage() {
       artStyle: newArtStyle
     };
     const updated = [...childProfiles, newProfile];
-    saveProfilesToStorage(updated);
+    setChildProfiles(updated);
     setSelectedChildIdx(updated.length - 1);
     setAgeBand(newAge);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(lastSelectedKey, newProfile.name);
+
+    if (user) {
+      try {
+        await upsertProfileFn({ data: newProfile });
+        await setLastChildFn({ data: { name: newProfile.name } });
+      } catch (err) {
+        console.error("Failed to save child profile to Cloud:", err);
+        toast.error("Saved locally — couldn't sync to the cloud right now.");
+        persistProfileLocalFallback(updated);
+      }
+    } else {
+      persistProfileLocalFallback(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(lastSelectedKey, newProfile.name);
+      }
     }
 
     // Reset Form
@@ -188,24 +294,34 @@ function HomePage() {
     toast.success(`${newProfile.name}'s profile added!`);
   };
 
-  const handleDeleteChild = (idx: number, e: React.MouseEvent) => {
+  const handleDeleteChild = async (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
     const childName = childProfiles[idx]?.name;
     const updated = childProfiles.filter((_, i) => i !== idx);
-
-    saveProfilesToStorage(updated);
+    setChildProfiles(updated);
 
     if (updated.length === 0) {
       setSelectedChildIdx(null);
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(lastSelectedKey);
-      }
     } else {
-      // Keep selection sensible: pick the first remaining profile
       setSelectedChildIdx(0);
       setAgeBand(updated[0].ageBand);
+    }
+
+    if (user && childName) {
+      try {
+        await deleteProfileFn({ data: { name: childName } });
+        await setLastChildFn({
+          data: { name: updated[0]?.name ?? null },
+        });
+      } catch (err) {
+        console.error("Failed to delete child profile in Cloud:", err);
+        toast.error("Removed locally — couldn't sync the delete to the cloud.");
+      }
+    } else {
+      persistProfileLocalFallback(updated);
       if (typeof window !== "undefined") {
-        localStorage.setItem(lastSelectedKey, updated[0].name);
+        if (updated.length === 0) localStorage.removeItem(lastSelectedKey);
+        else localStorage.setItem(lastSelectedKey, updated[0].name);
       }
     }
     toast.success(`Removed ${childName}'s profile.`);
@@ -251,11 +367,26 @@ function HomePage() {
     }
     const childProfile = effectiveChildIdx !== null ? childProfiles[effectiveChildIdx] : undefined;
 
-    // Retrieve per-child steering insights saved on the Self-Improvement page.
-    // Falls back to the user's default bucket, then to the legacy global key.
+    // Retrieve per-child steering insights from Cloud (signed-in users) or
+    // fall back to localStorage (guests / cloud unreachable).
     let storedSteerage = "";
-    if (typeof window !== "undefined") {
-      const scope = user?.id ?? "guest";
+    if (user) {
+      try {
+        const { insightsText } = await getInsightsFn({
+          data: { childName: childProfile?.name ?? null },
+        });
+        if (!insightsText) {
+          // Fall back to the user's default bucket when no per-child insights exist.
+          const { insightsText: fallback } = await getInsightsFn({ data: {} });
+          storedSteerage = fallback || "";
+        } else {
+          storedSteerage = insightsText;
+        }
+      } catch (err) {
+        console.error("Failed to load insights from Cloud:", err);
+      }
+    } else if (typeof window !== "undefined") {
+      const scope = "guest";
       const childKey = childProfile
         ? `kidtok_user_steerage:${scope}:${childProfile.name.trim()}`
         : null;
@@ -268,13 +399,26 @@ function HomePage() {
     }
 
     try {
-      const { id } = await createEpisode({ 
-        topic: t, 
-        ageBand, 
+      const { id } = await createEpisode({
+        topic: t,
+        ageBand,
         generationMode: effectiveMode,
         userSteerage: storedSteerage || undefined,
-        childProfile
+        childProfile,
       });
+      // Best-effort: record this episode in the per-user Cloud index so the
+      // Self-Improvement counter ticks up immediately and survives across
+      // devices. Don't block navigation on failure.
+      if (user) {
+        void recordEpisodeFn({
+          data: {
+            episodeId: id,
+            childName: childProfile?.name ?? null,
+            topic: t,
+            ageBand,
+          },
+        }).catch((err) => console.error("recordEpisode failed:", err));
+      }
       navigate({ to: "/episode/$id", params: { id } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't start your cartoon.");
