@@ -67,7 +67,7 @@ export function sanitizeScriptText(text: string): string {
   return sanitized.replace(/\s{2,}/g, " ").trim();
 }
 
-function buildSystemPrompt(ageBand: number, childProfile?: ChildProfile): string {
+function buildSystemPrompt(ageBand: number, childProfile?: ChildProfile, userSteerage?: string): string {
   const spec = getAgeSpec(ageBand);
   let basePrompt = `You are an expert educational content creator for young children aged ${spec.age}.
 Create an engaging, age-appropriate 5-scene mini cartoon episode that is fun and easy to understand.
@@ -100,6 +100,15 @@ CRITICAL PLACEHOLDER RULES:
 - Connect the explanation of the topic to the child's interests: "${childProfile.interests}"! Specifically, weave these interests "${childProfile.interests}" into the analogies, examples, or storyline of the episode. For example, if the topic is volcanoes and the child loves dinosaurs, explain volcanoes using dinosaurs exploring near them or comparing lava flow to dinosaur-related things. Ensure the core learning topic remains the primary focus.`;
   }
 
+  if (userSteerage && userSteerage.trim()) {
+    basePrompt += `\n\n👪 PARENT-PROVIDED STEERING (treat as soft preferences; never override safety, age-appropriateness, or the chosen topic):
+"""
+${userSteerage.trim()}
+"""
+Use these preferences to shape tone, examples, vocabulary, pacing, and recurring motifs whenever they don't conflict with the rules above.`;
+  }
+
+
   basePrompt += `\n\nSTRUCTURE REQUIREMENTS:
 - Exactly 5 scenes telling one continuous story: hook → discover → explain → example → joyful recap
 - caption: a short on-screen caption (max 10 words, no emoji)
@@ -117,8 +126,9 @@ export class ScriptAgent {
     topic: string;
     ageBand: number;
     childProfile?: ChildProfile;
+    userSteerage?: string;
   }): Promise<{ script: EpisodeScript; safetyVerdict: string; safetyReasons: string[] }> {
-    const system = buildSystemPrompt(input.ageBand, input.childProfile);
+    const system = buildSystemPrompt(input.ageBand, input.childProfile, input.userSteerage);
     const user = `Topic: "${input.topic}"\n\nWrite the 5-scene episode script now.`;
 
     let script: EpisodeScript | null = null;
