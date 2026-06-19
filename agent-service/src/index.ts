@@ -15,7 +15,7 @@ import { ClassroomOrchestrator } from "./orchestrator/ClassroomOrchestrator.js";
 import type { Providers, TextLlm } from "./clients/interfaces.js";
 import { VertexAuth, VertexGeminiImageGen, VertexRestTextLlm } from "./clients/gemini.js";
 import { GeminiVisualSafetyClassifier } from "./clients/imageSafety.js";
-import { FirestoreEpisodeStore, GcsAssetStorage, GoogleSpeechSynth } from "./clients/google.js";
+import { FirestoreEpisodeStore, GcsAssetStorage, GoogleSpeechSynth, FirestoreUserIndex, IndexedEpisodeStore } from "./clients/google.js";
 import { ElevenLabsSpeechSynth } from "./clients/elevenlabs.js";
 import { PhoenixMcpClient } from "./clients/phoenixMcp.js";
 import {
@@ -27,6 +27,7 @@ import {
   InMemoryEpisodeStore,
   LocalDirStorage,
   FakeVideoGen,
+  FakeUserIndex,
 } from "./clients/fakes.js";
 import { KieOmniVideoGenerator } from "./clients/videoGen.js";
 
@@ -55,7 +56,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
       visualSafety: new FakeVisualSafety(),
       tts: new FakeSpeechSynth(),
       storage: new LocalDirStorage(localAssetsDir, `http://localhost:${cfg.port}/assets`),
-      store: new InMemoryEpisodeStore(),
+      store: new IndexedEpisodeStore(new InMemoryEpisodeStore(), new FakeUserIndex()),
       phoenix: new FakePhoenixMcp(tracing.memoryExporter),
       videoGen: new FakeVideoGen(),
       forceFlushTracing: tracing.forceFlush,
@@ -75,6 +76,10 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
     }
     console.log(`[boot] orchestrator engine=${cfg.orchestratorEngine} textModel=${cfg.textModel} imageModel=${cfg.imageModel}`);
 
+    const firestoreStore = new FirestoreEpisodeStore(cfg.projectId, cfg.firestoreCollection);
+    const userIndexRoot = env.FIRESTORE_USER_INDEX_ROOT || "users";
+    const userIndex = new FirestoreUserIndex(firestoreStore.db, userIndexRoot);
+
     providers = {
       textLlm,
       imageGen: new VertexGeminiImageGen(vertexAuth, cfg.projectId, cfg.region, cfg.imageModel),
@@ -87,7 +92,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
       ),
       tts: cfg.elevenlabsApiKey ? new ElevenLabsSpeechSynth(cfg.elevenlabsApiKey) : new GoogleSpeechSynth(),
       storage: new GcsAssetStorage(cfg.projectId, cfg.gcsBucket),
-      store: new FirestoreEpisodeStore(cfg.projectId, cfg.firestoreCollection),
+      store: new IndexedEpisodeStore(firestoreStore, userIndex),
       phoenix: new PhoenixMcpClient({
         phoenixHost: cfg.phoenixHost,
         phoenixApiKey: cfg.phoenixApiKey,

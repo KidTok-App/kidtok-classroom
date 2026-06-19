@@ -181,6 +181,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
       degradedScenes > 0 || input.imageRetries > 0 || alignmentScore < 8 || input.templateFellBack || !!input.userSteerage;
     let promptImproved = false;
     let finalNotes = notes.join(" ");
+    let promptVersionUsed = input.promptVersionUsed;
     if (weaknessFound) {
       const improveRes = await this.improveScenePrompt(
         {
@@ -202,6 +203,9 @@ Your notes MUST include a dedicated sentence assessment of child personalization
         const childTag = input.childProfile?.name ? ` for ${input.childProfile.name}` : "";
         const publishedNote = `Prompt mgmt: published an improved "${promptName}" version${childTag} for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
         finalNotes += " " + publishedNote;
+        if (improveRes.versionId) {
+          promptVersionUsed = improveRes.versionId;
+        }
       }
     }
 
@@ -210,7 +214,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
       score,
       notes: finalNotes,
       promptImproved,
-      promptVersionUsed: input.promptVersionUsed,
+      promptVersionUsed,
       spanCount: spans.length,
     };
     await this.store.update(input.episodeId, { review, status: "ready" });
@@ -246,7 +250,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
       promptName: string;
     },
     weakness: { degradedScenes: number; imageRetries: number; alignmentScore: number; notes: string[] },
-  ): Promise<{ success: boolean; changeSummary?: string }> {
+  ): Promise<{ success: boolean; changeSummary?: string; versionId?: string | null }> {
     let improvedTemplate: string | null = null;
     let changeSummary = "Optimized prompt template via closed-loop quality telemetry.";
     try {
@@ -354,7 +358,7 @@ Your notes MUST include a dedicated sentence assessment of child personalization
     console.log(
       `[QualityReviewerAgent] upserted "${input.promptName}" via Phoenix MCP (new version=${version.versionId ?? "unknown"})`,
     );
-    return { success: true, changeSummary };
+    return { success: true, changeSummary, versionId: version.versionId };
   }
 }
 

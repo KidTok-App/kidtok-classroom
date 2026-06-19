@@ -6,11 +6,11 @@
 import { Firestore } from "@google-cloud/firestore";
 import { Storage } from "@google-cloud/storage";
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
-import type { AssetStorage, EpisodeStore, SpeechSynth } from "./interfaces.js";
+import type { AssetStorage, EpisodeStore, SpeechSynth, UserIndex } from "./interfaces.js";
 import type { EpisodeDoc } from "../types.js";
 
 export class FirestoreEpisodeStore implements EpisodeStore {
-  private readonly db: Firestore;
+  public readonly db: Firestore;
   constructor(
     projectId: string,
     private readonly collection: string,
@@ -96,5 +96,77 @@ export class GoogleSpeechSynth implements SpeechSynth {
       throw new Error("GOOGLE_TTS_EMPTY: API returned no audioContent");
     }
     return Buffer.from(response.audioContent as Uint8Array);
+  }
+}
+
+export class FirestoreUserIndex implements UserIndex {
+  constructor(
+    private readonly db: Firestore,
+    private readonly rootPath: string = "users",
+  ) {}
+
+  async syncEpisode(doc: EpisodeDoc): Promise<void> {
+    const ownerId = doc.ownerId;
+    if (!ownerId) {
+      return;
+    }
+
+    const episodeId = doc.id;
+    const userIndexDocRef = this.db
+      .collection(this.rootPath)
+      .doc(ownerId)
+      .collection("episodesIndex")
+      .doc(episodeId);
+
+    const indexData = {
+      episodeId,
+      childName: doc.childProfile?.name || "default",
+      topic: doc.topic,
+      ageBand: doc.ageBand,
+      status: doc.status,
+      promptVersionUsed: doc.review?.promptVersionUsed || doc.metrics?.scenePromptVersion || null,
+      reviewScore: doc.review?.score !== undefined ? doc.review.score : null,
+      createdAt: doc.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await userIndexDocRef.set(indexData, { merge: true });
+    console.log(`[FirestoreUserIndex] Synced episode ${episodeId} under ${this.rootPath}/${ownerId}`);
+  }
+}
+
+export class IndexedEpisodeStore implements EpisodeStore {
+  constructor(
+    private readonly inner: EpisodeStore,
+    private readonly userIndex: UserIndex,
+  ) {}
+
+  async create(doc: EpisodeDoc): Promise<void> {
+    await this.inner.create(doc);
+    try {
+      await this.userIndex.syncEpisode(doc);
+    } catch (err) {
+      console.error(`[IndexedEpisodeStore] Failed to sync created episode ${doc.id} to user index:`, err);
+    }
+  }
+
+  async update(id: string, patch: Partial<EpisodeDoc>): Promise<void> {
+    await this.inner.update(id, patch);
+    try {
+      const fullDoc = await this.inner.get(id);
+      if (fullDoc) {
+        await this.userIndex.syncEpisode(fullDoc);
+      }
+    } catch (err) {
+      console.error(`[IndexedEpisodeStore] Failed to sync updated episode ${id} to user index:`, err);
+    }
+  }
+
+  async get(id: string): Promise<EpisodeDoc | null> {
+    return this.inner.get(id);
+  }
+
+  async list(ownerId?: string, limit?: number): Promise<EpisodeDoc[]> {
+    return this.inner.list(ownerId, limit);
   }
 }

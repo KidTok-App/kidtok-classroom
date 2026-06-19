@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Sparkles, Zap, Shield, Heart, BookOpen, Film, Presentation, Plus, Trash2, Baby, Smile, LogIn, Lock } from "lucide-react";
 import { createEpisode, isApiConfigured } from "@/lib/agentApi";
@@ -11,10 +10,11 @@ import {
   upsertChildProfile,
   deleteChildProfile as deleteChildProfileFn,
   setLastSelectedChild,
-  getUserPreferences,
-} from "@/lib/profiles.functions";
-import { getInsights } from "@/lib/insights.functions";
-import { recordEpisode } from "@/lib/episodes-index.functions";
+  getLastSelectedChild,
+} from "@/lib/profiles.firestore";
+import { getInsights } from "@/lib/insights.firestore";
+import { recordEpisode } from "@/lib/episodesIndex.firestore";
+import { runFirebaseMigration } from "@/lib/migration";
 import {
   Dialog,
   DialogContent,
@@ -103,13 +103,61 @@ function HomePage() {
   const profilesKey = `kidtok_child_profiles:${storageScope}`;
   const lastSelectedKey = `kidtok_last_child_profile:${storageScope}`;
 
-  const listProfilesFn = useServerFn(listChildProfiles);
-  const upsertProfileFn = useServerFn(upsertChildProfile);
-  const deleteProfileFn = useServerFn(deleteChildProfileFn);
-  const setLastChildFn = useServerFn(setLastSelectedChild);
-  const getPrefsFn = useServerFn(getUserPreferences);
-  const getInsightsFn = useServerFn(getInsights);
-  const recordEpisodeFn = useServerFn(recordEpisode);
+  // Wrap direct Firestore client calls with local storage fallbacks for Guest mode
+  const isGuest = !user;
+
+  const listProfilesFn = async () => {
+    if (isGuest) {
+      const stored = localStorage.getItem(profilesKey);
+      if (stored) return JSON.parse(stored) as ChildProfile[];
+      return isMockUser ? DEFAULT_PROFILES : [];
+    }
+    return listChildProfiles(user.id);
+  };
+
+  const upsertProfileFn = async (input: { data: ChildProfile }) => {
+    if (isGuest) return;
+    await upsertChildProfile(user.id, input.data);
+  };
+
+  const deleteProfileFn = async (input: { data: { name: string } }) => {
+    if (isGuest) return;
+    await deleteChildProfileFn(user.id, input.data.name);
+  };
+
+  const setLastChildFn = async (input: { data: { name: string | null } }) => {
+    if (isGuest) {
+      if (input.data.name) {
+        localStorage.setItem(lastSelectedKey, input.data.name);
+      } else {
+        localStorage.removeItem(lastSelectedKey);
+      }
+      return;
+    }
+    await setLastSelectedChild(user.id, input.data.name);
+  };
+
+  const getPrefsFn = async () => {
+    if (isGuest) {
+      const last = localStorage.getItem(lastSelectedKey);
+      return { lastSelectedChild: last };
+    }
+    const last = await getLastSelectedChild(user.id);
+    return { lastSelectedChild: last };
+  };
+
+  const getInsightsFn = async (input: { data: { childName: string | null } }) => {
+    if (isGuest) {
+      return { insightsText: "" };
+    }
+    const text = await getInsights(user.id, input.data.childName);
+    return { insightsText: text };
+  };
+
+  const recordEpisodeFn = async (input: { data: { episodeId: string; childName: string | null; topic: string; ageBand: number } }) => {
+    if (isGuest) return;
+    await recordEpisode(user.id, input.data);
+  };
 
   // Hydrate profiles. Signed-in users read from Cloud (with a one-time
   // migration of any pre-existing localStorage rows). Guests still use
@@ -161,32 +209,8 @@ function HomePage() {
 
     const run = async () => {
       try {
-        // One-time migration: push any leftover localStorage profiles into Cloud.
-        const migratedFlag = `kidtok_cloud_migrated:${user.id}`;
-        if (typeof window !== "undefined" && !localStorage.getItem(migratedFlag)) {
-          const stored = localStorage.getItem(profilesKey);
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                for (const p of parsed) {
-                  if (!p?.name) continue;
-                  await upsertProfileFn({
-                    data: {
-                      name: String(p.name),
-                      ageBand: Number(p.ageBand ?? 6),
-                      interests: String(p.interests ?? ""),
-                      artStyle: String(p.artStyle ?? "crayon sketch"),
-                    },
-                  });
-                }
-              }
-            } catch {
-              /* ignore */
-            }
-          }
-          localStorage.setItem(migratedFlag, "1");
-        }
+        // Run the new one-time Firebase migration shim
+        await runFirebaseMigration(user);
 
         const [profiles, prefs] = await Promise.all([
           listProfilesFn(),
@@ -377,7 +401,7 @@ function HomePage() {
         });
         if (!insightsText) {
           // Fall back to the user's default bucket when no per-child insights exist.
-          const { insightsText: fallback } = await getInsightsFn({ data: {} });
+          const { insightsText: fallback } = await getInsightsFn({ data: { childName: null } });
           storedSteerage = fallback || "";
         } else {
           storedSteerage = insightsText;

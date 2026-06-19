@@ -27,6 +27,7 @@ import type {
   VisualSafetyClassifier,
   VisualSafetyVerdict,
   VideoGen,
+  UserIndex,
 } from "./interfaces.js";
 
 export class FakeTextLlm implements TextLlm {
@@ -167,6 +168,12 @@ export class InMemoryEpisodeStore implements EpisodeStore {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit)
       .map((d) => structuredClone(d));
+  }
+}
+
+export class FakeUserIndex implements UserIndex {
+  async syncEpisode(doc: EpisodeDoc): Promise<void> {
+    console.log(`[FakeUserIndex] Mock synced episode ${doc.id} for owner ${doc.ownerId}`);
   }
 }
 

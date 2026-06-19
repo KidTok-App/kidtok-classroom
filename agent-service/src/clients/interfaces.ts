@@ -112,6 +112,10 @@ export interface VideoGen {
   generateVideo(prompt: string, referenceImageUrl?: string): Promise<string>;
 }
 
+export interface UserIndex {
+  syncEpisode(doc: EpisodeDoc): Promise<void>;
+}
+
 export interface Providers {
   textLlm: TextLlm;
   imageGen: ImageGen;

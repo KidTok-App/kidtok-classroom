@@ -16,7 +16,6 @@ import { Route as HowToMakeEducationalCartoonsRouteImport } from './routes/how-t
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EpisodeIdRouteImport } from './routes/episode.$id'
-import { Route as ApiPublicAgentWebhookRouteImport } from './routes/api/public/agent-webhook'
 import { Route as ApiAgentEpisodesRouteImport } from './routes/api/agent/episodes'
 import { Route as ApiAgentConfigRouteImport } from './routes/api/agent/config'
 import { Route as ApiAgentPromptsHistoryRouteImport } from './routes/api/agent/prompts/history'
@@ -58,11 +57,6 @@ const EpisodeIdRoute = EpisodeIdRouteImport.update({
   path: '/episode/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicAgentWebhookRoute = ApiPublicAgentWebhookRouteImport.update({
-  id: '/api/public/agent-webhook',
-  path: '/api/public/agent-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAgentEpisodesRoute = ApiAgentEpisodesRouteImport.update({
   id: '/api/agent/episodes',
   path: '/api/agent/episodes',
@@ -94,7 +88,6 @@ export interface FileRoutesByFullPath {
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
-  '/api/public/agent-webhook': typeof ApiPublicAgentWebhookRoute
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
   '/api/agent/prompts/history': typeof ApiAgentPromptsHistoryRoute
 }
@@ -108,7 +101,6 @@ export interface FileRoutesByTo {
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
-  '/api/public/agent-webhook': typeof ApiPublicAgentWebhookRoute
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
   '/api/agent/prompts/history': typeof ApiAgentPromptsHistoryRoute
 }
@@ -123,7 +115,6 @@ export interface FileRoutesById {
   '/episode/$id': typeof EpisodeIdRoute
   '/api/agent/config': typeof ApiAgentConfigRoute
   '/api/agent/episodes': typeof ApiAgentEpisodesRouteWithChildren
-  '/api/public/agent-webhook': typeof ApiPublicAgentWebhookRoute
   '/api/agent/episodes/$id': typeof ApiAgentEpisodesIdRoute
   '/api/agent/prompts/history': typeof ApiAgentPromptsHistoryRoute
 }
@@ -139,7 +130,6 @@ export interface FileRouteTypes {
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
-    | '/api/public/agent-webhook'
     | '/api/agent/episodes/$id'
     | '/api/agent/prompts/history'
   fileRoutesByTo: FileRoutesByTo
@@ -153,7 +143,6 @@ export interface FileRouteTypes {
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
-    | '/api/public/agent-webhook'
     | '/api/agent/episodes/$id'
     | '/api/agent/prompts/history'
   id:
@@ -167,7 +156,6 @@ export interface FileRouteTypes {
     | '/episode/$id'
     | '/api/agent/config'
     | '/api/agent/episodes'
-    | '/api/public/agent-webhook'
     | '/api/agent/episodes/$id'
     | '/api/agent/prompts/history'
   fileRoutesById: FileRoutesById
@@ -182,7 +170,6 @@ export interface RootRouteChildren {
   EpisodeIdRoute: typeof EpisodeIdRoute
   ApiAgentConfigRoute: typeof ApiAgentConfigRoute
   ApiAgentEpisodesRoute: typeof ApiAgentEpisodesRouteWithChildren
-  ApiPublicAgentWebhookRoute: typeof ApiPublicAgentWebhookRoute
   ApiAgentPromptsHistoryRoute: typeof ApiAgentPromptsHistoryRoute
 }
 
@@ -237,13 +224,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EpisodeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/agent-webhook': {
-      id: '/api/public/agent-webhook'
-      path: '/api/public/agent-webhook'
-      fullPath: '/api/public/agent-webhook'
-      preLoaderRoute: typeof ApiPublicAgentWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/agent/episodes': {
       id: '/api/agent/episodes'
       path: '/api/agent/episodes'
@@ -296,7 +276,6 @@ const rootRouteChildren: RootRouteChildren = {
   EpisodeIdRoute: EpisodeIdRoute,
   ApiAgentConfigRoute: ApiAgentConfigRoute,
   ApiAgentEpisodesRoute: ApiAgentEpisodesRouteWithChildren,
-  ApiPublicAgentWebhookRoute: ApiPublicAgentWebhookRoute,
   ApiAgentPromptsHistoryRoute: ApiAgentPromptsHistoryRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { 
   Sparkles, 
@@ -20,8 +19,9 @@ import {
 } from "lucide-react";
 import { getPromptHistory, PromptHistoryItem, listEpisodes, Episode } from "@/lib/agentApi";
 import { useAuth } from "@/lib/auth";
-import { listChildProfiles, getUserPreferences } from "@/lib/profiles.functions";
-import { getInsights, saveInsights } from "@/lib/insights.functions";
+import { listChildProfiles, getLastSelectedChild } from "@/lib/profiles.firestore";
+import { getInsights, saveInsights } from "@/lib/insights.firestore";
+import { subscribeMyEpisodesIndex } from "@/lib/episodesIndex.firestore";
 
 export const Route = createFileRoute("/self-improvement")({
   head: () => ({
@@ -152,15 +152,53 @@ function SelfImprovementPage() {
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [childProfiles, setChildProfiles] = useState<ChildSummary[]>([]);
   const [activeChild, setActiveChild] = useState<ChildSummary | null>(null);
-  const listProfilesFn = useServerFn(listChildProfiles);
-  const getPrefsFn = useServerFn(getUserPreferences);
-  const getInsightsFn = useServerFn(getInsights);
-  const saveInsightsFn = useServerFn(saveInsights);
+  const isGuest = !user;
+  const storageScope = user?.id ?? "guest";
+  const profilesKey = `kidtok_child_profiles:${storageScope}`;
+  const lastSelectedKey = `kidtok_last_child_profile:${storageScope}`;
+
+  const listProfilesFn = async () => {
+    if (isGuest) {
+      const stored = localStorage.getItem(profilesKey);
+      if (stored) return JSON.parse(stored) as ChildSummary[];
+      return [];
+    }
+    return listChildProfiles(user.id);
+  };
+
+  const getPrefsFn = async () => {
+    if (isGuest) {
+      const last = localStorage.getItem(lastSelectedKey);
+      return { lastSelectedChild: last };
+    }
+    const last = await getLastSelectedChild(user.id);
+    return { lastSelectedChild: last };
+  };
+
+  const getInsightsFn = async (input: { data: { childName: string | null } }) => {
+    if (isGuest) {
+      const key = `kidtok_user_steerage:guest:${input.data.childName?.trim() || "default"}`;
+      const text = typeof window !== "undefined" ? localStorage.getItem(key) || "" : "";
+      return { insightsText: text };
+    }
+    const text = await getInsights(user.id, input.data.childName);
+    return { insightsText: text };
+  };
+
+  const saveInsightsFn = async (input: { data: { childName: string | null; insightsText: string } }) => {
+    if (isGuest) {
+      const key = `kidtok_user_steerage:guest:${input.data.childName?.trim() || "default"}`;
+      if (typeof window !== "undefined") {
+        localStorage.setItem(key, input.data.insightsText);
+      }
+      return;
+    }
+    await saveInsights(user.id, input.data.childName, input.data.insightsText);
+  };
 
   // Load child profiles + episodes. Profiles come from Cloud for signed-in
   // users (with a fallback to legacy localStorage when Cloud is unreachable).
-  // Episodes refetch on focus/visibility AND poll every ~5s while any cartoon
-  // is mid-pipeline so the counter ticks up without a hard refresh.
+  // Real-time listener for episodes index replaces old polling.
   useEffect(() => {
     if (!user) {
       const { profiles, lastName } = loadChildProfiles(undefined);
@@ -171,8 +209,6 @@ function SelfImprovementPage() {
     }
 
     let cancelled = false;
-    let pollHandle: ReturnType<typeof setInterval> | null = null;
-    const TERMINAL: Episode["status"][] = ["ready", "failed"];
 
     const loadProfiles = async () => {
       try {
@@ -197,51 +233,41 @@ function SelfImprovementPage() {
       }
     };
 
-    const refresh = async () => {
-      try {
-        const list = await listEpisodes();
-        if (cancelled) return;
-        const next = Array.isArray(list) ? list : [];
-        setEpisodes(next);
-        setEpisodesError(null);
-        const hasInFlight = next.some((e) => !TERMINAL.includes(e.status));
-        if (hasInFlight && !pollHandle) {
-          pollHandle = setInterval(() => {
-            void refresh();
-          }, 5000);
-        } else if (!hasInFlight && pollHandle) {
-          clearInterval(pollHandle);
-          pollHandle = null;
-        }
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Error fetching episodes:", err);
-        const msg = err instanceof Error ? err.message : String(err);
-        setEpisodesError(
-          /401|unauthor/i.test(msg)
-            ? "Couldn't load your cartoons — please sign in again."
-            : "Couldn't load your cartoons just now. Try again in a moment."
-        );
-      } finally {
-        if (!cancelled) setLoadingEpisodes(false);
-      }
-    };
-
     void loadProfiles();
-    void refresh();
 
-    const onFocus = () => void refresh();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
+    // Direct-browser real-time subscription for Episodes Index
+    const unsub = subscribeMyEpisodesIndex(user.id, (list) => {
+      if (cancelled) return;
+      
+      const mapped: Episode[] = list.map((row) => ({
+        id: row.episodeId,
+        topic: row.topic,
+        ageBand: row.ageBand,
+        createdAt: row.createdAt,
+        status: row.status as Episode["status"],
+        childProfile: row.childName ? {
+          name: row.childName,
+          ageBand: row.ageBand,
+          interests: "",
+          artStyle: ""
+        } : undefined,
+        review: typeof row.reviewScore === "number" ? {
+          score: row.reviewScore,
+          notes: "",
+          promptImproved: false,
+          promptVersionUsed: row.promptVersionUsed,
+          spanCount: 0
+        } : undefined
+      }));
+
+      setEpisodes(mapped);
+      setLoadingEpisodes(false);
+      setEpisodesError(null);
+    });
 
     return () => {
       cancelled = true;
-      if (pollHandle) clearInterval(pollHandle);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
+      unsub();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);

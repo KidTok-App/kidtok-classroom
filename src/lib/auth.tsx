@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "./firebase";
 
 export interface User {
   id: string;
@@ -49,8 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedToken = localStorage.getItem("kidtok_id_token");
     if (savedUser && savedToken) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
         setIdToken(savedToken);
+        if (savedToken && !savedToken.startsWith("mock-token-")) {
+          signInWithCredential(auth, GoogleAuthProvider.credential(savedToken))
+            .catch((err) => console.error("Firebase auth restore failed:", err));
+        }
       } catch {
         // clear corrupted data
         localStorage.removeItem("kidtok_user");
@@ -101,6 +108,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setIdToken(token);
               localStorage.setItem("kidtok_user", JSON.stringify(googleUser));
               localStorage.setItem("kidtok_id_token", token);
+              
+              // Sign into Firebase Auth via credential exchange
+              signInWithCredential(auth, GoogleAuthProvider.credential(token))
+                .catch((err) => console.error("Firebase Auth credential exchange failed:", err));
             }
           },
           auto_select: false,
@@ -139,6 +150,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIdToken(null);
     localStorage.removeItem("kidtok_user");
     localStorage.removeItem("kidtok_id_token");
+    
+    // Sign out from Firebase Auth
+    auth.signOut().catch((err) => console.error("Firebase signOut failed:", err));
     
     // Also disable GIS session
     const google = (window as any).google;
