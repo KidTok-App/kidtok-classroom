@@ -201,7 +201,7 @@ export class VertexGeminiImageGen implements ImageGen {
         const body = {
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
-            responseModalalities: ["IMAGE", "TEXT"],
+            responseModalities: ["IMAGE", "TEXT"],
             temperature: 1.0,
             ...(thinkingCfg ? { thinkingConfig: thinkingCfg } : {}),
             imageConfig: { aspectRatio: "16:9", imageSize: "1K" },

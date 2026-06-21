@@ -138,6 +138,50 @@ function humanizePromptChange(summary: string, childName: string | null): string
   return summary.charAt(0).toUpperCase() + summary.slice(1);
 }
 
+function safeDecodeBase64(str: string): string | null {
+  try {
+    if (typeof window !== "undefined" && typeof window.atob === "function") {
+      return window.atob(str);
+    }
+    if (typeof Buffer !== "undefined") {
+      return Buffer.from(str, "base64").toString("utf-8");
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+function formatVersionId(versionId: string, index: number): string {
+  if (!versionId) return `v${index + 1}`;
+  
+  // If it's already in the format "v1", "v2", keep it
+  if (/^v\d+$/i.test(versionId)) {
+    return versionId.toLowerCase();
+  }
+
+  // Try decoding base64
+  const decoded = safeDecodeBase64(versionId);
+  if (decoded) {
+    // If decoded string matches "PromptVersion:XX"
+    const match = decoded.match(/PromptVersion:(\d+)/);
+    if (match) {
+      return `v${match[1]}`;
+    }
+    // If it's a generic word or number after decoding and reasonably short
+    if (/^[a-zA-Z0-9_-]+$/.test(decoded) && decoded.length <= 10) {
+      return decoded;
+    }
+  }
+
+  // Fallback to sequential index vX if the ID is very long (e.g. UUID, hash, base64)
+  if (versionId.length > 8) {
+    return `v${index + 1}`;
+  }
+
+  return versionId;
+}
+
 function SelfImprovementPage() {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState<"parent" | "developer">("parent");
@@ -392,9 +436,9 @@ function SelfImprovementPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground pb-2 border-b border-border">
-          <span>Comparing: <strong className="text-foreground">{prev.versionId}</strong></span>
+          <span>Comparing: <strong className="text-foreground">{formatVersionId(prev.versionId, previousIdx)}</strong></span>
           <ArrowRight className="h-3 w-3" />
-          <span>To: <strong className="text-foreground">{curr.versionId}</strong></span>
+          <span>To: <strong className="text-foreground">{formatVersionId(curr.versionId, currentIdx)}</strong></span>
         </div>
         <div className="p-5 rounded-2xl bg-black/40 font-mono text-xs sm:text-sm leading-relaxed max-h-96 overflow-y-auto whitespace-pre-wrap">
           {diff.map((chunk, idx) => {
@@ -653,7 +697,7 @@ function SelfImprovementPage() {
               <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                    Latest tune · {latestPromptChange.versionId}
+                    Latest tune · {formatVersionId(latestPromptChange.versionId, promptHistory.length - 1)}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {new Date(latestPromptChange.createdAt).toLocaleDateString()}
@@ -806,23 +850,27 @@ function SelfImprovementPage() {
               {/* Version timeline buttons */}
               {loadingPrompts ? null : (
                 <div className="flex items-center gap-1.5 bg-background border border-border p-1 rounded-xl shadow-inner">
-                  {promptHistory.map((item, idx) => (
-                    <button
-                      key={item.versionId}
-                      onClick={() => setSelectedVersion(idx)}
-                      disabled={idx === 0} // Can't compare v1 to anything previous
-                      title={idx === 0 ? "Initial Seed Version" : `Compare ${item.versionId} to ${promptHistory[idx-1]?.versionId}`}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        selectedVersion === idx
-                          ? "bg-primary text-primary-foreground shadow-soft"
-                          : idx === 0 
-                            ? "text-muted-foreground/40 bg-transparent cursor-not-allowed"
-                            : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {item.versionId}
-                    </button>
-                  ))}
+                  {promptHistory.map((item, idx) => {
+                    const displayId = formatVersionId(item.versionId, idx);
+                    const prevDisplayId = idx > 0 ? formatVersionId(promptHistory[idx - 1]?.versionId, idx - 1) : "";
+                    return (
+                      <button
+                        key={item.versionId}
+                        onClick={() => setSelectedVersion(idx)}
+                        disabled={idx === 0} // Can't compare v1 to anything previous
+                        title={idx === 0 ? "Initial Seed Version" : `Compare ${displayId} to ${prevDisplayId}`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          selectedVersion === idx
+                            ? "bg-primary text-primary-foreground shadow-soft"
+                            : idx === 0 
+                              ? "text-muted-foreground/40 bg-transparent cursor-not-allowed"
+                              : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {displayId}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
