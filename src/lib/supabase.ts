@@ -2,14 +2,9 @@
 // Migrated from legacy Firebase on 2026-06-21.
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Force manual project parameters to prevent Lovable build overrides from hijacking traffic
+const supabaseUrl = "https://qlmmahcfuhhgszoqenyu.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsbW1haGNmdWhoZ3N6b3Flbnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDQwMzgsImV4cCI6MjA5NzM4MDAzOH0.k94V-Yfiv_Vf5Ms136J4tHcsXJDeIeBYAe75TLjlvp0";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are missing. Check your .env file.");
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const supabase = createClient(
-  supabaseUrl || "https://placeholder.supabase.co",
-  supabaseAnonKey || "placeholder-anon-key"
-);
