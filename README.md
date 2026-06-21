@@ -4,7 +4,7 @@
 
 KidTok Classroom turns a parent's request like *"why do volcanoes erupt"* into a five-scene illustrated, narrated mini-episode for kids ages 5–8. A React frontend polls a REST API while a central **ClassroomOrchestrator** drives six specialized sub-agents through scripting, scene planning, image generation, narration, assembly, and an automated quality review that closes the loop by improving its own prompts.
 
-**Runtime mandate:** the shipped backend uses **Google services** (Gemini via Vertex AI, Cloud Text-to-Speech, Firestore, Cloud Storage) **plus Arize Phoenix** (OpenInference tracing + MCP server).
+**Runtime mandate:** the shipped backend uses **Google services** (Gemini via Vertex AI, Cloud Text-to-Speech, Cloud Storage) **plus Supabase** (Postgres DB, child profiles, episodes, and indexes) and **Arize Phoenix** (OpenInference tracing + MCP server).
 
 ---
 
@@ -48,7 +48,7 @@ Point the frontend at the service: set `VITE_AGENT_API_URL=http://localhost:8080
 
 | Route | Behavior |
 |---|---|
-| `POST /episodes` `{ topic, ageBand }` | `201 { id, episodeId }` — pipeline runs async in-process; Firestore doc tracks status |
+| `POST /episodes` `{ topic, ageBand }` | `201 { id, episodeId }` — pipeline runs async in-process; Supabase table tracks status |
 | `GET /episodes/:id` | `{ id, topic, ageBand, createdAt, status, title?, scenes?, review?, error? }` |
 | `GET /episodes` | All episodes, newest first |
 | `GET /healthz` | Liveness + mode info |
@@ -79,15 +79,18 @@ flowchart TB
     subgraph GOOGLE["Google Cloud"]
         VERTEX["Vertex AI<br/>Gemini text + image"]
         TTS["Cloud Text-to-Speech"]
-        FS[("Firestore<br/>episode docs")]
         GCS[("Cloud Storage<br/>PNG + MP3, public URLs")]
+    end
+
+    subgraph PARTNERS["External Partners & Database"]
+        SB[("Supabase DB<br/>Postgres store")]
     end
 
     A1 -.-> VERTEX
     A2 -.-> VERTEX
     A3 -.-> VERTEX
     A4 -.-> TTS
-    ORCH --> FS
+    ORCH --> SB
     A3 --> GCS
     A4 --> GCS
 
@@ -108,7 +111,7 @@ flowchart TB
 
 1. Every pipeline stage runs inside an **OpenInference** span exported to **Phoenix** (`PHOENIX_HOST/v1/traces`, project `kidtok-classroom`); the root span carries `episodeId`.
 2. Before planning scenes, **ScenePlannerAgent** fetches the latest `kidtok-scene-prompt` template through the **Phoenix MCP server** (`get-latest-prompt`), seeding it from the legacy template (`upsert-prompt`) on first run.
-3. After assembly, **QualityReviewerAgent** retrieves *this episode's* spans via MCP (`get-spans`), evaluates stage latencies, image retries, and caption/narration alignment, writes `review: { score, notes }` to Firestore, and — when it detects a scene-prompt weakness — publishes an improved template version via `upsert-prompt`.
+3. After assembly, **QualityReviewerAgent** retrieves *this episode's* spans via MCP (`get-spans`), evaluates stage latencies, image retries, and caption/narration alignment, writes `review: { score, notes }` to Supabase, and — when it detects a scene-prompt weakness — publishes an improved template version via `upsert-prompt`.
 4. The **next episode's** ScenePlannerAgent picks up the improved version (logged with version ids; compare `review.promptVersionUsed` across episodes).
 
 ---
@@ -147,7 +150,7 @@ Set `ORCHESTRATOR_ENGINE=rest` to switch to the **fallback** path (same architec
 | (b) **ADK agent definitions** (primary) / documented fallback | `agent-service/src/clients/adkLlm.ts:18` (`import { LlmAgent, InMemoryRunner } from "@google/adk"`), `:57` (`new LlmAgent({...})` named definitions), `:74` (`new InMemoryRunner`), `:91` (`runner.runAsync`). Fallback: `agent-service/src/clients/gemini.ts:106` (`VertexRestTextLlm`), selected at `agent-service/src/index.ts` via `ORCHESTRATOR_ENGINE` |
 | (c) **Phoenix MCP tools invoked at runtime** | `agent-service/src/clients/phoenixMcp.ts:109-127` (spawn `@arizeai/phoenix-mcp` + MCP `connect`), `:175` (`get-latest-prompt`), `:198` (`upsert-prompt`, `model_provider: GOOGLE`), `:220` (`get-spans`). Call sites: `agent-service/src/agents/ScenePlannerAgent.ts:84-86` (fetch/seed) and `agent-service/src/agents/QualityReviewerAgent.ts:205` (spans) + `:285` (publish improved prompt) |
 | OpenInference tracing → Phoenix | `agent-service/src/tracing.ts:56-57` (OTLP exporter → `PHOENIX_HOST/v1/traces`), `:46` (project resource attribute), root span `episodeId`: `agent-service/src/orchestrator/ClassroomOrchestrator.ts` (`runEpisode`) |
-| Google Cloud TTS / Firestore / Cloud Storage only | `agent-service/src/clients/google.ts:12` (Firestore), `:44` (Cloud Storage), `:67-74` (Cloud TTS `synthesizeSpeech`) |
+| Google Cloud TTS / Cloud Storage / Supabase DB | `agent-service/src/clients/supabase.ts:47` (Supabase store), `agent-service/src/clients/google.ts:44` (Cloud Storage), `agent-service/src/clients/google.ts:67-74` (Cloud TTS `synthesizeSpeech`) |
 
 ### Hosted Live Environment
 
@@ -159,13 +162,13 @@ Set `ORCHESTRATOR_ENGINE=rest` to switch to the **fallback** path (same architec
 
 #### Sample API Verification Curl
 
-You can verify the live service's operational status and Firestore backend connection by fetching the list of successfully generated classroom episodes:
+You can verify the live service's operational status and Supabase Postgres backend connection by fetching the list of successfully generated classroom episodes:
 
 ```bash
 curl -X GET "https://kidtok-classroom-agent-298496420007.europe-west1.run.app/episodes"
 ```
 
-Expected response format (showing the list of active episodes and metadata stored in Firestore Native):
+Expected response format (showing the list of active episodes and metadata stored in Supabase Postgres):
 ```json
 {
   "value": [
@@ -185,7 +188,7 @@ Expected response format (showing the list of active episodes and metadata store
 kidtok-agent-service@1.0.0
 ├── @arizeai/openinference-semantic-conventions@2.5.0
 ├── @arizeai/phoenix-mcp@2.3.7
-├── @google-cloud/firestore@7.11.6
+├── @supabase/supabase-js@2.108.2
 ├── @google-cloud/storage@7.21.0
 ├── @google-cloud/text-to-speech@6.4.1
 ├── @google/adk@1.2.0
