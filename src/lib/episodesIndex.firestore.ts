@@ -1,14 +1,4 @@
-import { db } from "./firebase";
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { supabase } from "./supabase";
 
 export interface EpisodeIndexRow {
   episodeId: string;
@@ -26,29 +16,62 @@ export function subscribeMyEpisodesIndex(
   uid: string,
   callback: (episodes: EpisodeIndexRow[]) => void
 ) {
-  const colRef = collection(db, "users", uid, "episodesIndex");
-  const q = query(colRef, orderBy("createdAt", "desc"));
-  return onSnapshot(q, (snap) => {
-    const episodes = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        episodeId: d.id,
-        childName: data.childName || null,
-        topic: data.topic || "",
-        ageBand: typeof data.ageBand === "number" ? data.ageBand : 6,
-        status: data.status || "scripting",
-        promptVersionUsed: data.promptVersionUsed || null,
-        reviewScore: typeof data.reviewScore === "number" ? data.reviewScore : null,
-        createdAt: data.createdAt?.toDate
-          ? data.createdAt.toDate().toISOString()
-          : data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt?.toDate
-          ? data.updatedAt.toDate().toISOString()
-          : data.updatedAt || new Date().toISOString(),
-      };
-    });
+  let active = true;
+
+  const fetchAndCallback = async () => {
+    const { data, error } = await supabase
+      .from("episodes_index")
+      .select("*")
+      .eq("owner_id", uid)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[subscribeMyEpisodesIndex] Fetch failed:", error.message);
+      return;
+    }
+
+    if (!active) return;
+
+    const episodes: EpisodeIndexRow[] = (data || []).map((row) => ({
+      episodeId: row.episode_id,
+      childName: row.child_name || null,
+      topic: row.topic,
+      ageBand: row.age_band,
+      status: row.status,
+      promptVersionUsed: row.prompt_version_used,
+      reviewScore: row.review_score,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
     callback(episodes);
-  });
+  };
+
+  // 1. Fetch initial list
+  void fetchAndCallback();
+
+  // 2. Setup Realtime subscription
+  const channel = supabase
+    .channel(`public:episodes_index:owner:${uid}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "episodes_index",
+        filter: `owner_id=eq.${uid}`,
+      },
+      () => {
+        void fetchAndCallback();
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe cleanup function
+  return () => {
+    active = false;
+    void supabase.removeChannel(channel);
+  };
 }
 
 export async function recordEpisode(
@@ -60,17 +83,20 @@ export async function recordEpisode(
     ageBand: number;
   }
 ) {
-  const docRef = doc(db, "users", uid, "episodesIndex", input.episodeId);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) {
-    await setDoc(docRef, {
-      episodeId: input.episodeId,
-      childName: input.childName || null,
+  // Safe upsert, since episodes row already exists at this point
+  const { error } = await supabase
+    .from("episodes_index")
+    .upsert({
+      episode_id: input.episodeId,
+      owner_id: uid,
+      child_name: input.childName || null,
       topic: input.topic,
-      ageBand: input.ageBand,
+      age_band: input.ageBand,
       status: "scripting",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "episode_id" });
+
+  if (error) {
+    console.warn("[recordEpisode] warning (might be handled by trigger):", error.message);
   }
 }

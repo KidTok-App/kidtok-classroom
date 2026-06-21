@@ -16,6 +16,7 @@ import type { Providers, TextLlm } from "./clients/interfaces.js";
 import { VertexAuth, VertexGeminiImageGen, VertexRestTextLlm } from "./clients/gemini.js";
 import { GeminiVisualSafetyClassifier } from "./clients/imageSafety.js";
 import { FirestoreEpisodeStore, GcsAssetStorage, GoogleSpeechSynth, FirestoreUserIndex, IndexedEpisodeStore } from "./clients/google.js";
+import { SupabaseEpisodeStore, SupabaseUserIndex } from "./clients/supabase.js";
 import { ElevenLabsSpeechSynth } from "./clients/elevenlabs.js";
 import { PhoenixMcpClient } from "./clients/phoenixMcp.js";
 import {
@@ -76,9 +77,13 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
     }
     console.log(`[boot] orchestrator engine=${cfg.orchestratorEngine} textModel=${cfg.textModel} imageModel=${cfg.imageModel}`);
 
-    const firestoreStore = new FirestoreEpisodeStore(cfg.projectId, cfg.firestoreCollection);
-    const userIndexRoot = env.FIRESTORE_USER_INDEX_ROOT || "users";
-    const userIndex = new FirestoreUserIndex(firestoreStore.db, userIndexRoot);
+    const supabaseUrl = env.SUPABASE_URL;
+    const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Missing required Supabase environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY");
+    }
+    const supabaseStore = new SupabaseEpisodeStore(supabaseUrl, supabaseServiceRoleKey);
+    const userIndex = new SupabaseUserIndex(supabaseStore.client);
 
     providers = {
       textLlm,
@@ -92,7 +97,7 @@ export async function boot(env: NodeJS.ProcessEnv = process.env): Promise<BootRe
       ),
       tts: cfg.elevenlabsApiKey ? new ElevenLabsSpeechSynth(cfg.elevenlabsApiKey) : new GoogleSpeechSynth(),
       storage: new GcsAssetStorage(cfg.projectId, cfg.gcsBucket),
-      store: new IndexedEpisodeStore(firestoreStore, userIndex),
+      store: new IndexedEpisodeStore(supabaseStore, userIndex),
       phoenix: new PhoenixMcpClient({
         phoenixHost: cfg.phoenixHost,
         phoenixApiKey: cfg.phoenixApiKey,

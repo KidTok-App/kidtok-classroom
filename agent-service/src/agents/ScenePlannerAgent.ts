@@ -69,12 +69,13 @@ export class ScenePlannerAgent {
     script: EpisodeScript;
     childProfile?: ChildProfile;
     userSteerage?: string;
+    ownerId?: string;
   }): Promise<ScenePlanResult> {
     // 1. Fetch the live template from Phoenix prompt management (MCP).
     //    Prompts are scoped per child ("<base>--<child-slug>") so each child
     //    accrues their own improvement loop; a child with no published
     //    versions yet inherits the shared baseline template.
-    const promptName = childScopedPromptName(this.scenePromptName, input.childProfile?.name);
+    const promptName = childScopedPromptName(this.scenePromptName, input.childProfile?.name, input.ownerId);
     let promptSeeded = false;
     let inheritedBaseline = false;
     let prompt = await this.phoenix.getLatestPrompt(promptName);

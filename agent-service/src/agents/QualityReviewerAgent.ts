@@ -203,9 +203,6 @@ Your notes MUST include a dedicated sentence assessment of child personalization
         const childTag = input.childProfile?.name ? ` for ${input.childProfile.name}` : "";
         const publishedNote = `Prompt mgmt: published an improved "${promptName}" version${childTag} for the next episode (was version=${input.promptVersionUsed ?? "seed"}). Change: ${improveRes.changeSummary}`;
         finalNotes += " " + publishedNote;
-        if (improveRes.versionId) {
-          promptVersionUsed = improveRes.versionId;
-        }
       }
     }
 

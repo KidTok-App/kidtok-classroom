@@ -112,6 +112,7 @@ export class ClassroomOrchestrator {
                 script: scriptOut.script,
                 childProfile: doc.childProfile,
                 userSteerage: doc.userSteerage,
+                ownerId: doc.ownerId,
               }),
             );
 
@@ -219,6 +220,7 @@ Ensure you explicitly describe:
               script: scriptOut.script,
               childProfile: doc.childProfile,
               userSteerage: doc.userSteerage,
+              ownerId: doc.ownerId,
             }),
           );
 

@@ -91,6 +91,7 @@ export interface EpisodeDoc {
   userSteerage?: string;
   metrics?: EpisodeMetrics;
   childProfile?: ChildProfile;
+  updatedAt?: string; // ISO
 }
 
 /** Public response shape (matches frontend src/lib/agentApi.ts `Episode`). */

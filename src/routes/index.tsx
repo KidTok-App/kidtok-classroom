@@ -14,7 +14,7 @@ import {
 } from "@/lib/profiles.firestore";
 import { getInsights } from "@/lib/insights.firestore";
 import { recordEpisode } from "@/lib/episodesIndex.firestore";
-import { runFirebaseMigration } from "@/lib/migration";
+import { runSupabaseMigration } from "@/lib/migration";
 import {
   Dialog,
   DialogContent,
@@ -209,8 +209,8 @@ function HomePage() {
 
     const run = async () => {
       try {
-        // Run the new one-time Firebase migration shim
-        await runFirebaseMigration(user);
+        // Run the new one-time Supabase migration shim
+        await runSupabaseMigration(user);
 
         const [profiles, prefs] = await Promise.all([
           listProfilesFn(),

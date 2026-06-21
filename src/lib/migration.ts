@@ -1,42 +1,49 @@
-import { db } from "./firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { supabase } from "./supabase";
 import { upsertChildProfile } from "./profiles.firestore";
 import { User } from "./auth";
 
-export async function runFirebaseMigration(user: User) {
+export async function runSupabaseMigration(user: User) {
   if (typeof window === "undefined") return;
   const uid = user.id;
-  const migrationFlag = `kidtok_firebase_migrated:${uid}`;
+  const migrationFlag = `kidtok_supabase_migrated:${uid}`;
   
   if (localStorage.getItem(migrationFlag)) {
     return;
   }
 
   try {
-    // Check if the user document is already marked as migrated in Firestore
-    const userDocRef = doc(db, "users", uid);
-    const userSnap = await getDoc(userDocRef);
-    if (userSnap.exists() && userSnap.data().profile?.migrated) {
+    // Check if the user document is already marked as migrated in Supabase
+    const { data: userProfile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", uid)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[runSupabaseMigration] failed to fetch profile:", fetchError.message);
+    }
+
+    if (userProfile && userProfile.display_name) {
       localStorage.setItem(migrationFlag, "true");
       return;
     }
 
-    console.log(`Starting Firebase migration for user: ${uid}`);
+    console.log(`Starting Supabase migration for user: ${uid}`);
 
-    // Create user profile node in Firestore
-    await setDoc(
-      userDocRef,
-      {
-        profile: {
-          displayName: user.name,
-          email: user.email,
-          picture: user.picture,
-          createdAt: serverTimestamp(),
-          migrated: true,
-        },
-      },
-      { merge: true }
-    );
+    // Create user profile in Supabase profiles table
+    const { error: insertError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: uid,
+        display_name: user.name,
+        email: user.email,
+        picture: user.picture,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "id" });
+
+    if (insertError) {
+      throw new Error(`Failed to create user profile in migration: ${insertError.message}`);
+    }
 
     // Migrate child profiles
     const profilesKey = `kidtok_child_profiles:${uid}`;
@@ -65,20 +72,22 @@ export async function runFirebaseMigration(user: User) {
     const lastSelectedKey = `kidtok_last_child_profile:${uid}`;
     const storedLastSelected = localStorage.getItem(lastSelectedKey);
     if (storedLastSelected) {
-      const prefsDocRef = doc(db, "users", uid, "preferences", "app");
-      await setDoc(
-        prefsDocRef,
-        {
-          lastSelectedChild: storedLastSelected,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const { error: prefError } = await supabase
+        .from("profiles")
+        .update({
+          last_selected_child: storedLastSelected,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", uid);
+
+      if (prefError) {
+        console.error("Failed to migrate preference during migration:", prefError.message);
+      }
     }
 
     localStorage.setItem(migrationFlag, "true");
-    console.log(`Firebase migration completed for user: ${uid}`);
+    console.log(`Supabase migration completed for user: ${uid}`);
   } catch (err) {
-    console.error("Firebase migration error:", err);
+    console.error("Supabase migration error:", err);
   }
 }

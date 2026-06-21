@@ -9,7 +9,7 @@
 
 import crypto from "node:crypto";
 import express, { type Express, type Request } from "express";
-import { OAuth2Client } from "google-auth-library";
+import { createClient } from "@supabase/supabase-js";
 import type { EpisodeStore, PhoenixMcp } from "./clients/interfaces.js";
 import type { ServiceConfig } from "./config.js";
 import { childScopedPromptName } from "./lib/promptScoping.js";
@@ -25,9 +25,14 @@ export interface ServerDeps {
 }
 
 type Caller = { id: string; name: string; email?: string };
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  }
+}) : null;
 
 // Omni video allowlist enforced server-side. Keep aligned with the UI list.
 const OMNI_ALLOWED_EMAILS = new Set(["wiktor@kidtok.co"]);
@@ -67,31 +72,38 @@ async function parseAuthToken(
     return { id, name, email };
   }
 
-  // 2. Google ID Token — full signature/issuer/audience/exp verification via JWKS.
-  if (!googleClient) {
-    console.error("[auth] GOOGLE_CLIENT_ID not configured — cannot verify Google ID tokens");
+  // 2. Supabase JWT Token validation.
+  if (!supabase) {
+    console.error("[auth] Supabase client not initialized — cannot verify tokens");
     return null;
   }
   try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    if (!payload || !payload.sub) return null;
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) {
+      if (error) {
+        console.warn("[auth] Supabase token verification error:", error.message);
+      }
+      return null;
+    }
+    const user = data.user;
     return {
-      id: payload.sub,
-      name: payload.name || payload.given_name || "Google User",
-      email: payload.email,
+      id: user.id,
+      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email || "Supabase User",
+      email: user.email,
     };
   } catch (err) {
-    console.warn("[auth] Google ID token verification failed:", err instanceof Error ? err.message : err);
+    console.warn("[auth] Supabase token verification failed:", err instanceof Error ? err.message : err);
     return null;
   }
 }
 
 async function requireCaller(req: Request, cfg: ServiceConfig): Promise<Caller | null> {
-  return parseAuthToken(req.headers.authorization, cfg);
+  const caller = await parseAuthToken(req.headers.authorization, cfg);
+  if (caller) return caller;
+  if (cfg.fakeProviders) {
+    return { id: "demo-parent", name: "Demo Parent", email: "wiktor@kidtok.co" };
+  }
+  return null;
 }
 
 // Hard server-side cap on free-form steerage to limit prompt-injection blast radius.
@@ -247,7 +259,7 @@ export function createServer(deps: ServerDeps): Express {
       let scope: "child" | "global" = "global";
       let history = await deps.phoenix.getPromptHistory(baseName);
       if (child) {
-        const scopedName = childScopedPromptName(baseName, child);
+        const scopedName = childScopedPromptName(baseName, child, caller.id);
         if (scopedName !== baseName) {
           const scoped = await deps.phoenix.getPromptHistory(scopedName);
           if (scoped.length > 0) {

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { getEpisode, isApiConfigured, createEpisode, listEpisodes } from "@/lib/agentApi";
+import { saveInsights } from "@/lib/insights.firestore";
 import { CartoonPlayer } from "@/components/CartoonPlayer";
 import { CinematicVideoPlayer } from "@/components/CinematicVideoPlayer";
 import { StatusScreen } from "@/components/StatusScreen";
@@ -336,10 +337,10 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
     }
   };
 
-  const handleSaveInsights = (e: React.FormEvent) => {
+  const handleSaveInsights = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingInsights(true);
-    setTimeout(() => {
+    try {
       const insightKey = `kidtok_episode_insights_${episode.id}`;
       localStorage.setItem(insightKey, JSON.stringify({
         kidEngagement,
@@ -348,9 +349,35 @@ function PhoenixMcpDashboard({ episode }: PhoenixMcpDashboardProps) {
         parentFeedback,
         savedAt: new Date().toISOString()
       }));
-      setIsSavingInsights(false);
+
+      // Find favorite scene caption
+      const favSceneObj = episode.scenes?.find(
+        (s: any) => (s.id || s.index?.toString()) === favScene
+      );
+      const favSceneCaption = favSceneObj ? favSceneObj.caption : "";
+
+      const engagementText = renderEngagementEmoji(kidEngagement);
+      const clarityText = renderClarityEmoji(learningClarity);
+
+      const compiledText = [
+        `Engagement: ${engagementText}`,
+        `Clarity: ${clarityText}`,
+        favSceneCaption ? `Favorite scene: "${favSceneCaption}"` : "",
+        parentFeedback.trim() ? `Feedback: "${parentFeedback.trim()}"` : ""
+      ].filter(Boolean).join("\n");
+
+      if (user?.id) {
+        const childName = episode.childProfile?.name || null;
+        await saveInsights(user.id, childName, compiledText);
+      }
+
       toast.success("🎉 Learning Insights Saved! Our AI teacher will customize subsequent cartoon runs based on your child's favorite scenes and interests!");
-    }, 800);
+    } catch (err) {
+      console.error("[handleSaveInsights] Failed to save insights:", err);
+      toast.error("Failed to save learning insights to the database.");
+    } finally {
+      setIsSavingInsights(false);
+    }
   };
 
   // Load iteration chain from the database

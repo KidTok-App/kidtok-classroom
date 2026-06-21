@@ -80,8 +80,8 @@ export class FakeTextLlm implements TextLlm {
     if (req.spanName === "review-prompt-improvement") {
       return {
         improvedTemplate:
-          "{visual_description}. A scene from an educational cartoon about {topic} for a {age_label}. {age_visual_style} Global art direction: warm, friendly 2D children's cartoon illustration, soft rounded shapes, vibrant colors, gentle lighting, uncluttered composition with one clear focal point. Keep one single subject, plain simple background. No text, no letters, no numbers, no captions, no watermarks anywhere in the image. No photorealistic humans; stylized cartoon characters only.",
-        changeSummary: "Tightened composition guidance to reduce retries.",
+          "{visual_description}. A scene from an educational cartoon about {topic} for a {age_label}. {age_visual_style} Global art direction: warm, friendly 2D children's cartoon illustration, soft rounded shapes, vibrant colors, gentle lighting, uncluttered composition with one clear focal point. Keep one single subject, plain simple background. No text, no letters, no numbers, no captions, no watermarks anywhere in the image. No photorealistic humans; stylized cartoon characters only. Extra guidance: ensure high-contrast character outlines for visual clarity.",
+        changeSummary: "Tightened composition guidance to reduce retries and enhanced character outlines.",
       } as T;
     }
 

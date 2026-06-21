@@ -1,15 +1,4 @@
-import { db } from "./firebase";
-import {
-  collection,
-  doc,
-  getDocs,
-  setDoc,
-  deleteDoc,
-  getDoc,
-  query,
-  orderBy,
-  serverTimestamp,
-} from "firebase/firestore";
+import { supabase } from "./supabase";
 
 export interface ChildProfile {
   name: string;
@@ -19,71 +8,90 @@ export interface ChildProfile {
 }
 
 export async function listChildProfiles(uid: string): Promise<ChildProfile[]> {
-  const colRef = collection(db, "users", uid, "childProfiles");
-  const q = query(colRef, orderBy("createdAt", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      name: data.name || d.id,
-      ageBand: typeof data.ageBand === "number" ? data.ageBand : 6,
-      interests: Array.isArray(data.interests) ? data.interests.join(", ") : (data.interests || ""),
-      artStyle: data.artStyle || "crayon sketch",
-    };
-  });
+  const { data, error } = await supabase
+    .from("child_profiles")
+    .select("name, age_band, interests, art_style")
+    .eq("owner_id", uid)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[listChildProfiles] error:", error.message);
+    return [];
+  }
+
+  return (data || []).map((row) => ({
+    name: row.name,
+    ageBand: row.age_band,
+    interests: row.interests || "",
+    artStyle: row.art_style || "crayon sketch",
+  }));
 }
 
 export async function upsertChildProfile(
   uid: string,
   profile: { name: string; ageBand: number; interests: string; artStyle: string }
 ) {
-  const docRef = doc(db, "users", uid, "childProfiles", profile.name);
-  const interestsArray = profile.interests
-    ? profile.interests
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
+  // Ensure parent profile row exists first to satisfy FK constraint
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert({ id: uid }, { onConflict: "id" });
 
-  const snap = await getDoc(docRef);
-  const exists = snap.exists();
+  if (profileError) {
+    console.error("[upsertChildProfile] error creating user profile:", profileError.message);
+  }
 
-  await setDoc(
-    docRef,
-    {
+  const { error } = await supabase
+    .from("child_profiles")
+    .upsert({
+      owner_id: uid,
       name: profile.name,
-      ageBand: profile.ageBand,
-      interests: interestsArray,
-      artStyle: profile.artStyle,
-      updatedAt: serverTimestamp(),
-      ...(exists ? {} : { createdAt: serverTimestamp() }),
-    },
-    { merge: true }
-  );
+      age_band: profile.ageBand,
+      interests: profile.interests,
+      art_style: profile.artStyle,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    throw new Error(`Failed to upsert child profile: ${error.message}`);
+  }
 }
 
 export async function deleteChildProfile(uid: string, name: string) {
-  const docRef = doc(db, "users", uid, "childProfiles", name);
-  await deleteDoc(docRef);
+  const { error } = await supabase
+    .from("child_profiles")
+    .delete()
+    .eq("owner_id", uid)
+    .eq("name", name);
+
+  if (error) {
+    throw new Error(`Failed to delete child profile: ${error.message}`);
+  }
 }
 
 export async function getLastSelectedChild(uid: string): Promise<string | null> {
-  const docRef = doc(db, "users", uid, "preferences", "app");
-  const snap = await getDoc(docRef);
-  if (snap.exists()) {
-    return snap.data().lastSelectedChild || null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("last_selected_child")
+    .eq("id", uid)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getLastSelectedChild] error:", error.message);
+    return null;
   }
-  return null;
+  return data?.last_selected_child || null;
 }
 
 export async function setLastSelectedChild(uid: string, name: string | null) {
-  const docRef = doc(db, "users", uid, "preferences", "app");
-  await setDoc(
-    docRef,
-    {
-      lastSelectedChild: name,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({
+      id: uid,
+      last_selected_child: name,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+
+  if (error) {
+    throw new Error(`Failed to set last selected child: ${error.message}`);
+  }
 }

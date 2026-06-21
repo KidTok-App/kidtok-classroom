@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "./firebase";
+import { supabase } from "./supabase";
 
 export interface User {
   id: string;
@@ -45,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [googleClientId]);
 
-  // Initialize auth from localStorage on mount
+  // Initialize auth and listen to state changes from Supabase
   useEffect(() => {
     const savedUser = localStorage.getItem("kidtok_user");
     const savedToken = localStorage.getItem("kidtok_id_token");
@@ -54,10 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
         setIdToken(savedToken);
-        if (savedToken && !savedToken.startsWith("mock-token-")) {
-          signInWithCredential(auth, GoogleAuthProvider.credential(savedToken))
-            .catch((err) => console.error("Firebase auth restore failed:", err));
-        }
       } catch {
         // clear corrupted data
         localStorage.removeItem("kidtok_user");
@@ -65,9 +60,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setLoading(false);
+
+    // Subscribe to Supabase auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        const supabaseUser = session.user;
+        const activeToken = session.access_token;
+        // Don't overwrite mock tokens
+        const currentToken = localStorage.getItem("kidtok_id_token");
+        if (currentToken && currentToken.startsWith("mock-token-")) {
+          return;
+        }
+
+        const authenticatedUser: User = {
+          id: supabaseUser.id,
+          name: supabaseUser.user_metadata.full_name || supabaseUser.user_metadata.name || supabaseUser.email || "Google User",
+          email: supabaseUser.email || "",
+          picture: supabaseUser.user_metadata.avatar_url || supabaseUser.user_metadata.picture || "",
+        };
+        setUser(authenticatedUser);
+        setIdToken(activeToken);
+        localStorage.setItem("kidtok_user", JSON.stringify(authenticatedUser));
+        localStorage.setItem("kidtok_id_token", activeToken);
+      } else {
+        const currentToken = localStorage.getItem("kidtok_id_token");
+        if (currentToken && !currentToken.startsWith("mock-token-")) {
+          setUser(null);
+          setIdToken(null);
+          localStorage.removeItem("kidtok_user");
+          localStorage.removeItem("kidtok_id_token");
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Helper to parse base64 JWT payload
+  // Helper to parse base64 JWT payload (kept for backup or local inspection)
   const parseJwt = (token: string) => {
     try {
       const base64Url = token.split(".")[1];
@@ -94,24 +125,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (google?.accounts?.id) {
         google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: (response: any) => {
+          callback: async (response: any) => {
             const token = response.credential;
-            const payload = parseJwt(token);
-            if (payload) {
-              const googleUser: User = {
-                id: payload.sub,
-                name: payload.name || payload.given_name || "Google User",
-                email: payload.email,
-                picture: payload.picture || "",
-              };
-              setUser(googleUser);
-              setIdToken(token);
-              localStorage.setItem("kidtok_user", JSON.stringify(googleUser));
-              localStorage.setItem("kidtok_id_token", token);
-              
-              // Sign into Firebase Auth via credential exchange
-              signInWithCredential(auth, GoogleAuthProvider.credential(token))
-                .catch((err) => console.error("Firebase Auth credential exchange failed:", err));
+            const { error } = await supabase.auth.signInWithIdToken({
+              provider: "google",
+              token: token,
+            });
+            if (error) {
+              console.error("Supabase Auth credential exchange failed:", error.message);
             }
           },
           auto_select: false,
@@ -151,8 +172,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("kidtok_user");
     localStorage.removeItem("kidtok_id_token");
     
-    // Sign out from Firebase Auth
-    auth.signOut().catch((err) => console.error("Firebase signOut failed:", err));
+    // Sign out from Supabase Auth
+    supabase.auth.signOut().catch((err) => console.error("Supabase signOut failed:", err));
     
     // Also disable GIS session
     const google = (window as any).google;
