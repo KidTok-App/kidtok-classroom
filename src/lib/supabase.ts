@@ -1,3 +1,5 @@
+// KidTok Classroom — Supabase Client configuration
+// Migrated from legacy Firebase on 2026-06-21.
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
