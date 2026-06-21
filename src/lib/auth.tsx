@@ -66,9 +66,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session) {
         const supabaseUser = session.user;
         const activeToken = session.access_token;
-        // Don't overwrite mock tokens
+        // Don't overwrite mock tokens, EXCEPT when we are explicitly signing in
         const currentToken = localStorage.getItem("kidtok_id_token");
-        if (currentToken && currentToken.startsWith("mock-token-")) {
+        if (event !== "SIGNED_IN" && currentToken && currentToken.startsWith("mock-token-")) {
           return;
         }
 
@@ -127,6 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           client_id: googleClientId,
           callback: async (response: any) => {
             const token = response.credential;
+            // Clear any active mock token before signing in to let onAuthStateChange process the actual user session
+            localStorage.removeItem("kidtok_user");
+            localStorage.removeItem("kidtok_id_token");
+
             const { error } = await supabase.auth.signInWithIdToken({
               provider: "google",
               token: token,
